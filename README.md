@@ -6,3 +6,18 @@ https://www.cbr.ru/currency_base/dynamics/?UniDbQuery.Posted=True&UniDbQuery.mod
 
 Oil:
 https://fred.stlouisfed.org/series/DCOILBRENTEU
+
+# Work distribution
+* Erik
+  * Test tree GARCH (univariate)
+  * Write a GARCH function
+  * Granger causality
+
+* Mila
+  * Cleaning file
+  * AutoARIMA -> save parameters, give the residuals to GARCH estimation (how to chosse tgarch threshold?)
+  * Look at tail distributions
+  
+* Johannes
+  * DCC
+  * Try to keep flexible the number of univariate GARCHes
