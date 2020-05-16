@@ -18,6 +18,9 @@ https://fred.stlouisfed.org/series/DGS3MO
 Riskfree rates Russian Federation
 https://cbr.ru/hd_base/zcyc_params/
 
+Russian Government Bond Zero Coupon Yield Curve:
+https://cbr.ru/eng/hd_base/zcyc_params/?UniDbQuery.Posted=True&UniDbQuery.From=14.05.2010&UniDbQuery.To=15.05.2020
+
 Thomson Reuters for Exchange rates and Indices 
 
 # Work distribution
