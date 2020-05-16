@@ -6,7 +6,7 @@
   library(xts)
   library(quantmod)
 
-  setwd("~/GitHub/Volatile-Gamma") # wd
+  setwd("C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/") # wd
   source("scripts/functions.R") # functions
   
 # Import Data ----
