@@ -43,3 +43,6 @@ Thomson Reuters for Exchange rates and Indices
 * Johannes
   * DCC
   * Try to keep flexible the number of univariate GARCHes
+  
+# Ideas next meeting
+* Test for structural breaks (different coefs within time). On uni or multivariate level?. LR Test
