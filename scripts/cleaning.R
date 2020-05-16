@@ -18,6 +18,7 @@ ts <- na.omit(ts)
 ts_r <- ts
 ts_r$rub <- dailyReturn(ts$rub, type='log')
 ts_r$oil <- dailyReturn(ts$oil, type='log')
+ts_r <- ts_r[-1, ]
 
 # Stationarity
 plot(ts_r$rub)
