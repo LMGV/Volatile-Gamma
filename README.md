@@ -12,11 +12,13 @@ https://fred.stlouisfed.org/series/DCOILBRENTEU
   * Test tree GARCH (univariate)
   * Write a GARCH function
   * Granger causality
+  * look for more data
+  * research question
 
 * Mila
   * Cleaning file
   * AutoARIMA -> save parameters, give the residuals to GARCH estimation (how to chosse tgarch threshold?)
-  * Look at tail distributions
+  * Look at tail distributions (t, GED only if possible in multivariate garch
   
 * Johannes
   * DCC
