@@ -61,4 +61,4 @@
 
 
 #save cleaned data
-  write.table(coredata(ts_r), "data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  write.table(coredata(ts_r), "data/data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
