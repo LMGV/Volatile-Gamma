@@ -27,7 +27,7 @@ Thomson Reuters for Exchange rates and Indices
 * Erik
   * Test tree GARCH (univariate)
   * Write a GARCH function
-  * Granger causality
+  * Granger causality - postponed: Vector Autoregressive Process, need to test for sign parms. Need to check specifics
   * look for more data
 	SPX, MOEX (russian index, denoted in RUB, 47% energy sector contribution), US 3m and 10y rf.
 	Missing: RU 3m and 10y rf
@@ -45,4 +45,8 @@ Thomson Reuters for Exchange rates and Indices
   * Try to keep flexible the number of univariate GARCHes
   
 # Ideas next meeting
+* Structure / Code: 	
+	flexible paths (setwd("~/GitHub/Volatile-Gamma")), for inputs and outputs
+	always save same type of file as in cleaning
+
 * Test for structural breaks (different coefs within time). On uni or multivariate level?. LR Test
