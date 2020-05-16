@@ -14,6 +14,7 @@ https://fred.stlouisfed.org/series/DCOILBRENTEU
   * Granger causality
   * look for more data
   * research question
+  * what to do with weekends / weekend effects? 
 
 * Mila
   * Cleaning file
