@@ -1,3 +1,11 @@
+#AR1 oil
+#AR1 rub
+
+#How does the test work
+#Likelihood std for garch(2,2)
+#Get the prediction funtion for dcc
+  #conditional var for the forecasts
+#Var
 
 #Output for the treegarch:
   #Splits
