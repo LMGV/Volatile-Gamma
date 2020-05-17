@@ -30,9 +30,6 @@ rub.t   <- data$rub[-1]
 rub.t_1 <- data$rub[-length(data$rub)]
 x.rub   <- matrix(c(rep(1, length(rub.t_1)), rub.t_1), nrow = length(rub.t_1), ncol = 2) # matrix of a constant and lagged dep var
 
-
-######### fit regression y_t = \alpha0 + \alpha1*y_{t-1} + \epsilon_t
-
 # this function performs a DF test with a constant; returns 1 if differencing is required and 0 otherwise
 df.test <- function(y, X, cl){ # cl can be one of 0.01, 0.025, 0.05, 0.1
   if( !(cl %in% c(0.01, 0.025, 0.05, 0.1)) ) stop('cl must be one of 0.01, 0.025, 0.05, 0.1')
