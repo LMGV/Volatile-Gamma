@@ -32,6 +32,7 @@ Thomson Reuters for Exchange rates and Indices
 	SPX, MOEX (russian index, denoted in RUB, 47% energy sector contribution), US 3m and 10y rf.
 	Missing: RU 3m and 10y rf
   * research question
+  * write garchPredict fct
   * what to do with weekends / other missing values in one series? 
 	Result: common consensus: ignore weekends. drop days where not all observations for all times series are given (on return level)
 

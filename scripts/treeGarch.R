@@ -24,7 +24,7 @@
   
   filter <- dplyr::filter
   select <- dplyr::select
-
+  setwd("~/GitHub/Volatile-Gamma") # setwd
 source("scripts/functions.R") # functions
 source("scripts/garchFunction.R") # functions
 
@@ -94,28 +94,40 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
 # Garch Function ----
           source("scripts/garchFunction.R") # functions
           # inputs fct
-          returns=ts_r$rub
+          returns=ts_r$oil
           ar = 1
           ma = 1
-          threshhold = T
-          data_threshhold = NA
+          threshhold = F
+          th_value  = 0 # not optimized within fct
+          data_threshhold = 0
           type = "GARCH"
           distribution ="norm"
           
           # my function 
-          par.start=c(rep(0.5,4),1)
-          my.optpar= nlm(garchEstimation,par.start,
+          start_parms=c(rep(0.5,4),0.1)
+          opt_parms= nlm(garchEstimation,start_parms,
                          returns = returns,  ar = ar, ma = ma,
-                         threshhold = threshhold, data_threshhold = data_threshhold,
+                         threshhold = threshhold, th_value = th_value, data_threshhold = data_threshhold,
                          type=type, distribution=distribution,
                          print.level=2,iterlim=1000, check.analyticals=1)
-          my.optpar
           
+          names_coefs = c("exp_ret","constant", paste0("AR",c(1:ar)), paste0("MA",c(1:ar)), "threshhold_parm")
+          names_coefs
+          c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma)])           # make sure to revert squares in parms
+            
+          # news impact curve
+            
+          garchEstimation(theta=start_parms, returns, ar, ma, threshhold,th_value,data_threshhold,type, distribution)
+          my.loglike.t(start_parms)
           
           # Audrino fct
-          par.start=c(rep(0.5,5),4)
-          my.optpar= nlm(my.loglike.t,par.start,iterlim=1000,print.level=2)
-          my.optpar
+          par.start=c(rep(0.5,4),0.1)
+          my.optpar= nlm(my.loglike.t,par.start,iterlim=1000,print.level=1)
+          my.optpar$estimate
+          
+          names_coefs = c("exp_ret","constant", "MA1",  "threshhold_parm", "AR1")
+          names_coefs
+          c(my.optpar$estimate[1], my.optpar$estimate[2]^2,my.optpar$estimate[3]^2,my.optpar$estimate[4] ,my.optpar$estimate[5]^2 )          # make sure to revert squares in parms
           
           
           m1=garchFit(returns~garch(1,1),data=returns,trace=F)
@@ -146,11 +158,11 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
             
             for (i in 2:(n+1))
             {
-              #my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]^2*my.sigmasq[i-1] #GARCH(1,1)
+              my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]^2*my.sigmasq[i-1] #GARCH(1,1)
               
-              my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]*(data[i-1]-my.mean[i-1])^2*((data[i-1]-my.mean[i-1])<=0)+theta[5]^2*my.sigmasq[i-1] #GJR-GARCH(1,1)
-              
-              #my.sigma[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])*((data[i-1]-my.mean[i-1])&gt;0)-theta[4]^2*(data[i-1]-my.mean[i-1])*((data[i-1]-my.mean[i-1])<=0)+ theta[5]^2*my.sigma[i-1] #TGARCH(1,1)
+              # my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]*(data[i-1]-my.mean[i-1])^2*((data[i-1]-my.mean[i-1])<=0)+theta[5]^2*my.sigmasq[i-1] #GJR-GARCH(1,1)
+    
+              #my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]*(data[i-1]-my.mean[i-1])^2*((data[i-1]-my.mean[i-1])<=0)+theta[5]^2*my.sigmasq[i-1] #GJR-GARCH(1,1)
               
               #my.sigma[i]=theta[2]^2+theta[3]^2*(abs((data[i-1]-my.mean[i-1]))-theta[4]*(data[i-1]-my.mean[i-1]))+theta[5]^2*my.sigma[i-1] #PGARCH(1,1) with d=1
               #my.sigmasq[i]=theta[2]^2+theta[3]^2*(abs((data[i-1]-my.mean[i-1]))-theta[4]*(data[i-1]-my.mean[i-1]))^2+theta[5]^2*my.sigmasq[i-1] #PGARCH(1,1) with d=2
