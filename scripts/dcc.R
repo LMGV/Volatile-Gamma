@@ -1,3 +1,4 @@
+
 #Output for the treegarch:
   #Splits
   #list with the estimated parameters
