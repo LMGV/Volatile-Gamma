@@ -1,5 +1,56 @@
 # basic functions
 
+## sample autocorrelation plots / table
+sampleAutocorrelation = function(returns, asset_name, significance_level) {
+  epsilon_pos = pmax((returns-mean(returns)),0)
+  epsilon_neg = pmin((returns-mean(returns)),0)
+  # sample autocorrelation
+  num_lags = 40
+  corr_pos = rep(0, num_lags)
+  corr_neg = rep(0, num_lags)
+  corr = as.data.frame(cbind(corr_pos,corr_neg))
+  for (h in 1:num_lags)
+  {
+    corr[h,1] =  cor(epsilon_pos[(1+h):(length(returns))],(returns-mean(returns))[(1):(length(returns)-h)]) #Leverage effect
+    corr[h,2] = cor(epsilon_neg[(1+h):(length(returns))],(returns-mean(returns))[(1):(length(returns)-h)]) #"reverse" leverage effect
+  }
+  
+  # significance autocorrelation
+  # approximate variance with 1/T, 2sided test
+  corr$corr_pos_p_value  = 1-pnorm(abs(corr$corr_pos *sqrt(length(corr$corr_pos)) * sqrt(length(corr$corr_pos)))) # mu * sqrt(N) * 1/sigma(corr_pos)
+  corr$corr_neg_p_value  = 1-pnorm(abs(corr$corr_neg *sqrt(length(corr$corr_neg)) * sqrt(length(corr$corr_neg)))) # mu * sqrt(N) * 1/sigma(corr_neg)
+  
+  title= paste0("Asymmetries ", asset_name)
+  x = seq(1:num_lags)
+  xlab  ="lags"
+  ylab = "correlation"
+  names_y = colnames(corr)[1:2]
+  y1 = corr$corr_pos
+  y2 = corr$corr_neg
+  legend = T
+  y_percent = F
+  y_discrete = F
+  print(line_plot_multiple(title, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2))
+  
+  title= paste0("Asymmetries P-values ", asset_name)
+  x = seq(1:num_lags)
+  xlab  ="lags"
+  ylab = "p_value"
+  names_y = c(colnames(corr)[3:4], "sign_bound")
+  y1 = corr$corr_pos_p_value
+  y2 = corr$corr_neg_p_value
+  y3 = significance_level/2
+  legend = T
+  y_percent = F
+  y_discrete = F
+  print(line_plot_multiple(title, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2,y3))
+  
+  # prepare table
+  print(xtable(corr))
+}
+
+
+
 ## plotting Functiions ----
 
 value_at_risk_empirical = function(data, significance_level, time) {
