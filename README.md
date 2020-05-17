@@ -32,6 +32,8 @@ Thomson Reuters for Exchange rates and Indices
 	SPX, MOEX (russian index, denoted in RUB, 47% energy sector contribution), US 3m and 10y rf.
 	Missing: RU 3m and 10y rf
   * research question
+  * HELP: likelihoods for: GARCH (2,1), GARCH(1,2), GARCH (2,2) for Normal and T-distrib. Understand likelihood in audrino-code)
+  * generalize GARCH fct for 2/3 lags?
   * write garchPredict fct
   * what to do with weekends / other missing values in one series? 
 	Result: common consensus: ignore weekends. drop days where not all observations for all times series are given (on return level)
@@ -49,5 +51,7 @@ Thomson Reuters for Exchange rates and Indices
 * Structure / Code: 	
 	flexible paths (setwd("~/GitHub/Volatile-Gamma")), for inputs and outputs
 	always save same type of file as in cleaning
+	
+* likelihood line: GARCH 1/1 normal : line 506, 634(t), 755
 
 * Test for structural breaks (different coefs within time). On uni or multivariate level?. LR Test
