@@ -15,15 +15,12 @@ acf(data2$rub, lag.max = 30, plot = TRUE)
 #### Ljung-Box test ####
 
 # H0: independence
-Box.test(data$oil, lag = 2, type = "Ljung-Box")#$p.value
-Box.test(data$rub, lag = 2, type = "Ljung-Box")#$p.value
-#auto.arima(data$oil, stationary = TRUE, ic = "bic")
-#auto.arima(data$rub, stationary = TRUE, ic = "bic")
+Box.test(data$oil, lag = 2, type = "Ljung-Box")
+Box.test(data$rub, lag = 2, type = "Ljung-Box")
 
 #### Dickey-Fuller test ####
 
 # H0: unit root
-#adf.test(x = data$oil, k = 0)#$p.value
 
 oil.t   <- data$oil[-1]
 oil.t_1 <- data$oil[-length(data$oil)]
