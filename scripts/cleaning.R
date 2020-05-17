@@ -69,7 +69,7 @@
       
       
   # Remove extreme Outliers via empirical quantiles
-      quantile_outliers = 0.001
+      quantile_outliers = 0 #disabled
       ts_r <- ts_r[(ts_r$rub > quantile(ts_r$rub,quantile_outliers)) & (ts_r$rub < quantile(ts_r$rub,1-quantile_outliers)) & (ts_r$oil > quantile(ts_r$oil,quantile_outliers))& (ts_r$oil < quantile(ts_r$oil,1-quantile_outliers))]
       
 
