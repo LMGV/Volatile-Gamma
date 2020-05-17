@@ -119,7 +119,7 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
           returns=ts_r$oil
           ar = 1
           ma = 1
-          threshhold = T
+          threshhold = F
           th_value  = 0 # not optimized within fct
           data_threshhold = 0
           type = "GARCH"
@@ -138,25 +138,64 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
           c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma)])           # make sure to revert squares in parms
             
          # tree garch test
-          returns = ts_r$oil
-          
-          vector_quantiles = seq(1, 19)*0.05
-          split_values = quantile(returns,vector_quantiles)
-          
-          
-          # split sample
-          for (i in 1:length(split_values)) {
-            subsample1 = returns[returns >=split_values[i]]
-            subsample2 = returns[returns <split_values[i]]
+            returns = ts_r$oil
             
-            # look this up: minimize combined likelihood? 
+            vector_quantiles = seq(1, 7)*0.125
+            split_values = quantile(returns,vector_quantiles)
             
-          }
+            
+            # step 1) find optimal GARCH 1/1 for full sample 
+            opt_parms= nlm(garchEstimation,start_parms,
+                           returns = returns,  ar = ar, ma = ma,
+                           threshhold = threshhold, th_value = th_value, data_threshhold = data_threshhold,
+                           type=type, distribution=distribution,
+                           print.level=2,iterlim=1000, check.analyticals=1)
+            
+            # step 2) split sample via reduction in log likelihood
+              # define possible split variables
+                # past returns, epsilons, variances of own process and other processes
+                 means = colMeans(ts_r)
+                 epsilon = sweep(ts_r,2,means)
+                 epsilon_sq = epsilon^2
+                 colnames(epsilon) = paste0(colnames(ts_r),"_epsilon")
+                 colnames(epsilon_sq) = paste0(colnames(ts_r),"_epsilon_sq")
+                 
+                 
+                 base_split_variables = as.xts(cbind(ts_r, epsilon, epsilon_sq))
+                 
+                 # get 2 lags of each variable. In VAR tests, dependencies were not consistent above the 2nd lag. Are excluded to get parsimonious computationally feasible model
+                 lag1 = lag(base_split_variables,1)
+                 lag2 = lag(base_split_variables,2)
+                 colnames(lag1) = paste0(colnames(base_split_variables),"_lag1")
+                 colnames(lag2) = paste0(colnames(base_split_variables),"_lag2")
+                 
+                 split_variables = as.data.frame(cbind(lag1 , lag2)) # data frame instead of time series
 
-          
-          
+                # possible others: interactions?
+                 
+            
+              # starting values are previous parameters
 
-          
+              # choose variable for partition
+               list_split_variables = colnames(split_variables)
+               
+              split_one_covariate = select(split_variables, list_split_variables[2])
+              
+              # split sample
+              for (i in 1:length(split_values)) {
+                subsample1 = returns[split_variable >=split_values[i]]
+                subsample2 = returns[split_variable <split_values[i]]
+                
+                # 
+                
+              }
+              
+            
+            # step 3) prune: sum of AIC - choose minimal sum
+            
+           
+
+   
           # news impact curve:
             # IMPLEMENT
             

@@ -58,6 +58,20 @@
       # normal plot
       plot(ts_r$oil, main="Oil")
       plot(ts_r$rub, main="RUB/USD")
+      
+  # QQ plot for Outliers and Normality (normality will be dealt with later)
+      # extreme tail outliers -> remove them since no risk-mgmt application
+      qqnorm(ts_r$rub)
+      qqline(ts_r$rub)
+      
+      qqnorm(ts_r$oil)
+      qqline(ts_r$oil)
+      
+      
+  # Remove extreme Outliers via empirical quantiles
+      quantile_outliers = 0.001
+      ts_r <- ts_r[(ts_r$rub > quantile(ts_r$rub,quantile_outliers)) & (ts_r$rub < quantile(ts_r$rub,1-quantile_outliers)) & (ts_r$oil > quantile(ts_r$oil,quantile_outliers))& (ts_r$oil < quantile(ts_r$oil,1-quantile_outliers))]
+      
 
 
 #save cleaned data

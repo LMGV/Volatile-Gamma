@@ -51,7 +51,16 @@ sampleAutocorrelation = function(returns, asset_name, significance_level) {
 
 
 
-## plotting Functiions ----
+## short helper functiions ----
+aic = function(log_likelihood, number_parms) {
+  aic = -2*log_likelihood+ 2*number_parms
+  return(aic)
+}
+
+bic = function(log_likelihood, number_parms, T) {
+  bic = -2*log_likelihood+ log(T)*number_parms
+  return(bic)
+}
 
 value_at_risk_empirical = function(data, significance_level, time) {
   # data = returns in correct time scale
