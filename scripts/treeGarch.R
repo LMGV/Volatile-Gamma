@@ -92,16 +92,38 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
           
 
 # Garch Function ----
+          
+    # test for asymmetries
+      # autocorrelation
+      sampleAutocorrelation(ts_r$oil, "oil", 0.05)
+      sampleAutocorrelation(ts_r$rub, "RUBUSD", 0.05)
+
+          
+     # sign bias tests   
+    # TODO
+      a=(sp500<0) #Sign Bias
+      a=c()
+      for (i in 1:length(ibm))
+      {
+        a=c(a,100*min(sp500[i],0)) #Negative Size Bias
+        #a=c(a,100*max(sp500[i],0)) #Positive Size Bias
+      }
+
+      h=5
+      b=lm(100*sp500[(h+1):length(ibm)]^2~a[1:(length(ibm)-h)])
+      summary(b)
+          
+          
           source("scripts/garchFunction.R") # functions
           # inputs fct
           returns=ts_r$oil
           ar = 1
           ma = 1
-          threshhold = F
+          threshhold = T
           th_value  = 0 # not optimized within fct
           data_threshhold = 0
           type = "GARCH"
-          distribution ="norm"
+          distribution ="normal"
           
           # my function 
           start_parms=c(rep(0.5,4),0.1)
@@ -115,8 +137,30 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
           names_coefs
           c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma)])           # make sure to revert squares in parms
             
-          # news impact curve
+         # tree garch test
+          returns = ts_r$oil
+          
+          vector_quantiles = seq(1, 19)*0.05
+          split_values = quantile(returns,vector_quantiles)
+          
+          
+          # split sample
+          for (i in 1:length(split_values)) {
+            subsample1 = returns[returns >=split_values[i]]
+            subsample2 = returns[returns <split_values[i]]
             
+            # look this up: minimize combined likelihood? 
+            
+          }
+
+          
+          
+
+          
+          # news impact curve:
+            # IMPLEMENT
+            
+          # compare results of audrino and our fct
           garchEstimation(theta=start_parms, returns, ar, ma, threshhold,th_value,data_threshhold,type, distribution)
           my.loglike.t(start_parms)
           

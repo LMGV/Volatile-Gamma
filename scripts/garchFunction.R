@@ -18,7 +18,7 @@ garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_thre
     
     # conditions
       # distribution
-      if (distribution %in% c("normal", "norm", "t") ==F ){
+      if (distribution %in% c("normal", "t") ==F ){
         print("Error: non-supported distribution type in garchEstimation")
       } 
       # number of parameters to be estimated equals dim of theta
@@ -50,7 +50,7 @@ garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_thre
       
       # threshhold: th_value as input parameter is not optimized. Parm "active" when epsilon < th_value
       if (threshhold==T)  {
-        th_active_iteration[2:(n+1)] = ((data[1:n]-mean_ret[1:n])<th_value) * ((data[1:n]-mean_ret[1:n])^2)*theta[5]
+        th_active_iteration[2:(n+1)] = ((data[1:n]-mean_ret[1:n])<=th_value) * ((data[1:n]-mean_ret[1:n])^2)*theta[5]
       }
 
       for (i in 2:(n+1))
