@@ -13,6 +13,9 @@ acf(data2$oil, lag.max = 30, plot = TRUE)
 acf(data2$rub, lag.max = 30, plot = TRUE)
 
 #### Ljung-Box test ####
+#acf(data2$oil, lag.max = 30, plot = TRUE)$acf[2]
+
+#length(data2$oil)*(length(data2$oil)+2)*(acf(data2$oil, lag.max = 30, plot = TRUE)$acf[2]^2/(length(data2$oil))-1)
 
 # H0: independence
 Box.test(data$oil, lag = 2, type = "Ljung-Box")
@@ -158,13 +161,14 @@ arma.errors <- function(parameters, y, p, q){ # parameters should be passed as a
     }
   }
   
-  return(sum(epsilon^2))
+  errors.list <- list("sumerrorssq" = sum(epsilon^2), "errorslist" = epsilon)
+  return(errors.list)
   
 }
 
 # this function computes log-likelihood value of a given ARMA model
 log.lik <- function(parameters, y, p, q) {
-  e  <- arma.errors(parameters, y, p, q)
+  e  <- arma.errors(parameters, y, p, q)$sumerrorssq
   ll <- -(length(y)/2)*log(2*pi) - (length(y)/2)*log(parameters[length(parameters)]) - (1/(2*parameters[length(parameters)]))*e
   return(-1 * ll)
 }
@@ -200,15 +204,31 @@ best.ARIMA <- function(y, p_grid, d, q_grid){
         model.loglik <- model$LogLikelihoodvalue
         model.p      <- pv
         model.q      <- qv
+        model.errors <- arma.errors(model.coeffs, y, pv, qv)$errorslist
       }
     }
   }
   
   best.model <- list("Coefficients" = model.coeffs, "LogLikelihoodvalue" = model.loglik, "BIC" = model.bic, "p" = model.p, 
-                     "q" = model.q, "d" = d)
+                     "q" = model.q, "d" = d, "errors" = model.errors)
   return(best.model)
 }
 
-model.oil <- best.ARIMA(oil.t, c(0, 1, 2), d.oil, c(0, 1, 2))
-model.rub <- best.ARIMA(rub.t, c(0, 1, 2), d.rub, c(0, 1, 2))
+model.oil <- best.ARIMA(oil.t, c(0, 1), d.oil, c(0, 1))
+model.rub <- best.ARIMA(rub.t, c(0, 1), d.rub, c(0, 1))
+
+data.e <- data
+data.e["oil_errors"] <- c(0, model.oil$errors)
+data.e["rub_errors"] <- c(0, model.rub$errors)
+
+write.table(data.e, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_e.csv", row.names = TRUE, 
+            sep=",")
+
+
+
+
+
+
+
+
 
