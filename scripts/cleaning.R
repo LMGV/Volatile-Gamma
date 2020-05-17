@@ -6,7 +6,7 @@
   library(xts)
   library(quantmod)
 
-  setwd("~/GitHub/Volatile-Gamma") # wd
+  setwd("C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/") # wd
   source("scripts/functions.R") # functions
   
 # Import Data ----
@@ -61,4 +61,4 @@
 
 
 #save cleaned data
-  write.table(coredata(ts_r), "data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  write.table(coredata(ts_r), "data/data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
