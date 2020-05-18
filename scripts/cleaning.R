@@ -1,6 +1,6 @@
 # Data Cleaning
 
-# librarys
+# libraries
   library(tidyverse)
   library(readxl)
   library(xts)
@@ -67,12 +67,20 @@
       qqnorm(ts_r$oil)
       qqline(ts_r$oil)
       
+  # Boxplots
+      boxplot(coredata(ts_r$rub))
+      title(main = "RUBUSD", ylab = "returns") 
+      boxplot(coredata(ts_r$oil))
+      title(main = "Oil", ylab = "returns") 
       
   # Remove extreme Outliers via empirical quantiles
-      quantile_outliers = 0 #disabled
+      #quantile_outliers = 0 #disabled
+      quantile_outliers = 0.01
       ts_r <- ts_r[(ts_r$rub > quantile(ts_r$rub,quantile_outliers)) & (ts_r$rub < quantile(ts_r$rub,1-quantile_outliers)) & (ts_r$oil > quantile(ts_r$oil,quantile_outliers))& (ts_r$oil < quantile(ts_r$oil,1-quantile_outliers))]
       
 
 
 #save cleaned data
-  write.table(coredata(ts_r), "data/data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  #write.table(coredata(ts_r), "data/data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  write.table(coredata(ts_r), "data/data_outliers_1.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  
