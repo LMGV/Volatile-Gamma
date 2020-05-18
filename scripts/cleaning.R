@@ -8,6 +8,7 @@
 
   setwd("C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/") # wd
   source("scripts/functions.R") # functions
+  outpath =  "output/returnPlotsCleaning/"
   
 # Import Data ----
   oil <- read_excel("data/Oil.xlsx")
@@ -38,7 +39,7 @@
       y2 = exp(cumsum(ts_r$rub))
       x = time(ts_r)
       names_y = c("Oil","RUB/USD")
-      line_point_plot_multiple(title, x,xlab, ylab, names_y, y_percent=F,y_discrete=T, legend=T, y1, y2)
+      line_point_plot_multiple(title, outpath,x,xlab, ylab, names_y, y_percent=F,y_discrete=T, legend=T, y1, y2)
       
     # normal plot
       plot(exp(cumsum(ts_r$oil)), col = 'darkgreen', main="Oil (green) and Rub/USD (blue)")
@@ -53,7 +54,7 @@
       y2 = ts_r$oil
       x = time(ts_r)
       names_y = c("Oil","RUB/USD")
-      line_point_plot_multiple(title, x,xlab, ylab, names_y, y_percent=F, y_discrete=T, legend=T, y1, y2)
+      line_point_plot_multiple(title, outpath, x,xlab, ylab, names_y, y_percent=F, y_discrete=T, legend=T, y1, y2)
       
       # normal plot
       plot(ts_r$oil, main="Oil")

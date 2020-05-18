@@ -1,6 +1,6 @@
 # garch function
 
-garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_threshhold, distribution) { 
+garchEstimation = function(theta, returns, ma,  ar,threshhold,th_value,data_threshhold, distribution) { 
   {
     # Inputs
       # theta: AR-coefs, MA-coefs, Treshhold, df of t-distribution

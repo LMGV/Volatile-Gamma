@@ -28,15 +28,17 @@ Thomson Reuters for Exchange rates and Indices
   * Test tree GARCH (univariate)
   * Write a GARCH function
   * Granger causality - postponed: Vector Autoregressive Process, need to test for sign parms. Need to check specifics
-  * look for more data
+  * look for more data - done
 	SPX, MOEX (russian index, denoted in RUB, 47% energy sector contribution), US 3m and 10y rf.
 	Missing: RU 3m and 10y rf
   * research question
   * HELP: likelihoods for: GARCH (2,1), GARCH(1,2), GARCH (2,2) for Normal and T-distrib. Understand likelihood in audrino-code)
   * generalize GARCH fct for 2/3 lags?
   * write garchPredict fct
-  * what to do with weekends / other missing values in one series? 
+  * what to do with weekends / other missing values in one series? - done (just remove, its common practice)
 	Result: common consensus: ignore weekends. drop days where not all observations for all times series are given (on return level)
+  * GARCH model analysis: 
+	ACF / PACF + PF tests, updated ConfIntervalls for ARIMIA. Investigate before and after model selection
 
 * Mila
   * Cleaning file
@@ -55,3 +57,4 @@ Thomson Reuters for Exchange rates and Indices
 * likelihood line: GARCH 1/1 normal : line 506, 634(t), 755
 
 * Test for structural breaks (different coefs within time). On uni or multivariate level?. LR Test
+* Mincer-Zarnowitz-Regressions for univariate RUB. maybe for dcc ->evaluated model performance
