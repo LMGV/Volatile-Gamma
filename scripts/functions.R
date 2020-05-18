@@ -1,7 +1,7 @@
 # basic functions
 
 ## sample autocorrelation plots / table
-sampleAutocorrelation = function(returns, asset_name, significance_level) {
+sampleAutocorrelation = function(returns, asset_name, significance_level, outpath) {
   epsilon_pos = pmax((returns-mean(returns)),0)
   epsilon_neg = pmin((returns-mean(returns)),0)
   # sample autocorrelation
@@ -30,7 +30,7 @@ sampleAutocorrelation = function(returns, asset_name, significance_level) {
   legend = T
   y_percent = F
   y_discrete = F
-  print(line_plot_multiple(title, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2))
+  print(line_plot_multiple(title, outpath,x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2))
   
   title= paste0("Asymmetries P-values ", asset_name)
   x = seq(1:num_lags)
@@ -43,7 +43,7 @@ sampleAutocorrelation = function(returns, asset_name, significance_level) {
   legend = T
   y_percent = F
   y_discrete = F
-  print(line_plot_multiple(title, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2,y3))
+  print(line_plot_multiple(title, outpath, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2,y3))
   
   # prepare table
   print(xtable(corr))
@@ -81,7 +81,7 @@ expected_shortfall_empirical = function(data, significance_level, time) {
 }
 
 ## plotting function ----
-line_plot_multiple = function(title, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2,y3,y4,y5,y6,y7,y8,y9,y10) {
+line_plot_multiple = function(title, outpath, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2,y3,y4,y5,y6,y7,y8,y9,y10) {
   # plots up to 10 lines with same scale 
   # insert vectors for x, y1, y2... y2-10 are optional
   # give vector for legend entry names_y, ...
@@ -152,7 +152,7 @@ line_plot_multiple = function(title, x,xlab, ylab, names_y, y_percent, y_discret
     theme(plot.title = element_text(size=10, face="bold"))+
     theme(axis.text=element_text(size=10),
           axis.title=element_text(size=10,face="bold"))+
-    ggsave(file=paste0("output/",title,".png"), width=6, height=4, dpi=600)
+    ggsave(file=paste0(outpath,title,".png"), width=6, height=4, dpi=600)
   
   print(plot)
   return(plot)

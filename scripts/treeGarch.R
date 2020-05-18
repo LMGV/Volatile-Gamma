@@ -31,15 +31,9 @@
 
 # Data Import ----
   # load arima-errors
-  ts_r = read.table('data/data_e.csv', sep = ',')
+  # ts_r = read.table('data/data_e.csv', sep = ',')
+  ts_r = read.table('data/data_removed_outliers_1.csv', sep = ',')
   ts_r = xts(ts_r, order.by = as.Date(rownames(ts_r)))
-  
-  
-## remove later
-  quantile_outliers = 0.002 #disabled
-  ts_r <- ts_r[(ts_r$rub > quantile(ts_r$rub,quantile_outliers)) & (ts_r$rub < quantile(ts_r$rub,1-quantile_outliers)) & (ts_r$oil > quantile(ts_r$oil,quantile_outliers))& (ts_r$oil < quantile(ts_r$oil,1-quantile_outliers))]
-  
-          
 
 # Garch Function ----
     # to see number of lags: just do 
@@ -165,92 +159,143 @@
           # news impact curve:
             # IMPLEMENT
                
-               
-          # compare results of audrino and our fct ----
-          garchEstimation(theta=start_parms, returns, ar, ma, threshhold,th_value,data_threshhold,type, distribution)
-          my.loglike.t( my.optpar$estimate)
-          
-          source("scripts/garchFunction.R") # functions
-          # inputs fct
-            returns=ts_r$rub_errors
-            ma = 1
-            ar = 2
-            threshhold = T
-            th_value  = 0 # not optimized within fct
-            data_threshhold = 0 # not implemented 
-            distribution ="t"
-            
-          # starting parms
-            start_parms = c(0,0.1,  rep(0.1,ma), rep(0.5,ar)) # initialize parms. 
-            if(threshhold==T){
-              start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
-            }
-            if(distribution=="t"){
-              start_parms=  c(start_parms, 6) # keep df_t > 2 due to likelihood fct
-            }
-            
-          # get list for input specification
-            number_parms_estimated = length(start_parms)
-            model_specification = list(number_parms_estimated,ma,ar,threshhold, distribution,th_value)
-            names(model_specification) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value")
-            
+      # choose optimal GARCH model
+         # possible model specifications
+         ma_choices = seq(1:3)
+         ar_choices = seq(1:3)
+         threshhold_choices = c(T,F)
+         th_value  = 0 # not optimized within fct
+         data_threshhold = 0 # not implemented 
+         distribution_choices =c("normal","t")
 
-            
-            opt_parms= nlm(garchEstimation,start_parms,
-                           returns = returns,  ma = model_specification$number_ma, ar = model_specification$number_ar, 
-                           threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = data_threshhold,
-                           distribution=model_specification$distribution,
-                           print.level=1,steptol = 1e-6, iterlim=1000, check.analyticals=T)
+        # input data
+          returns_list=list(ts_r$rub_errors, ts_r$oil_errors)
+          names(returns_list) = c("rub","oil")
+
+        # initialize selected model list for all univeriate series
+          all_selected_model = vector("list", length = length(returns_list))
+          names(all_selected_model) = names(returns_list)
           
-          # model parameters
-            names_parms =  c("mu_return", "constant_garch", paste0("ma",seq(1:ma)), paste0("ar",seq(1:ar)))
-            if(threshhold==T){
-              names_parms=  c(names_parms, "threshhold_coef") # set asymmetry parameter to 0 
-            }
-            if(distribution=="t"){
-              names_parms=  c(names_parms, "df_t_distrib") # keep df_t > 2 due to likelihood fct
-            }
+        # estimate model for all univariate inputs
+          for(data_iter in 1:length(returns_list)) {
+            returns = returns_list[[data_iter]]
             
-            garch_coefs = as.data.frame(t(c(opt_parms$estimate[1:2], opt_parms$estimate[3:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))
-            colnames(garch_coefs) = names_parms
-           
-            print("GARCH coefs") 
-            print(garch_coefs)
-            
-          # model evaluation
-            
-            # stationarity
-              sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
-              if(threshhold==T){
-                sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$threshhold_coef # adjust if threshhold is active
-              }
-              print("Sum of Coefs (including threshhold)")
-              print(sum_coefs)
+            # inialize result list for one univariate series
+            garch_model_selection = list()
           
-            # model selection
-              print("log_likelihood")
-              loglik_model =-opt_parms$minimum
-              loglik_model
-              print("AIC")
-              aic_model = my_aic(loglik_model, model_specification$number_parms_estimated)
-              aic_model
-              print("BIC")
-              bic_model = my_bic(loglik_model, model_specification$number_parms_estimated, length(returns))
-              bic_model
+          # estimate all models given choices above
+            for (dist_iter in 1:length(distribution_choices)){
+              distribution =distribution_choices[dist_iter] # set distribution
               
-          # save model evaluation in list  
-            model_evaluation = list(sum_coefs,loglik_model, aic_model, bic_model)
-            names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
-          
-          # save model evaluation in list
-            garch_model = list(colnames(returns), returns, garch_coefs, model_specification, model_evaluation)
-            names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation")
-          
-            saveRDS(garch_model, file = "output/garch_oil.rds")
-            test = readRDS("output/garch_oil.rds")
+              for (th_iter in 1:length(threshhold_choices)){
+                threshhold = threshhold_choices[th_iter]
+                
+                for(ar_iter in 1:length(ar_choices)){
+                  ar = ar_choices[ar_iter]
+                  
+                  for(ma_iter in 1:length(ma_choices)){
+                    ma = ma_choices[ma_iter]
+                    
+                    # GARCH model Estimation
+                        # starting parms
+                        start_parms = c(0,0.1,  rep(0.1,ma), rep(0.5,ar)) # initialize parms. 
+                        if(threshhold==T){
+                          start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
+                        }
+                        if(distribution=="t"){
+                          start_parms=  c(start_parms, 6) # keep df_t > 2 due to likelihood fct
+                        }
+                        
+                        # get list for input specification
+                          number_parms_estimated = length(start_parms)
+                          model_specification = list(number_parms_estimated,ma,ar,threshhold, distribution,th_value)
+                          names(model_specification) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value")
+                          
+                        # estimate GARCH model for given specification (minimize negative loglikelihood)
+                          opt_parms= nlm(garchEstimation,start_parms,
+                                         returns = returns,  ma = model_specification$number_ma, ar = model_specification$number_ar, 
+                                         threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = data_threshhold,
+                                         distribution=model_specification$distribution,
+                                         print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
+                        
+                        # get model parameters
+                          names_parms =  c("mu_return", "constant_garch", paste0("ma",seq(1:ma)), paste0("ar",seq(1:ar)))
+                          if(threshhold==T){
+                            names_parms=  c(names_parms, "threshhold_coef") # set asymmetry parameter to 0 
+                          }
+                          if(distribution=="t"){
+                            names_parms=  c(names_parms, "df_t_distrib") # keep df_t > 2 due to likelihood fct
+                          }
+                          
+                          garch_coefs = as.data.frame(t(c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))
+                          colnames(garch_coefs) = names_parms
+                        
+                        # model evaluation
+                            # stationarity
+                            sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
+                            if(threshhold==T){
+                              sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$threshhold_coef # adjust if threshhold is active
+                            }
+                            
+                            # model selection
+                            loglik_model =-opt_parms$minimum
+                            aic_model = my_aic(loglik_model, model_specification$number_parms_estimated)
+                            bic_model = my_bic(loglik_model, model_specification$number_parms_estimated, length(returns))
+                            
+                            # save model evaluation in list  
+                            model_evaluation = list(sum_coefs,loglik_model, aic_model, bic_model)
+                            names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
+                        
+                       # add model to model selection list
+                        garch_model = list(colnames(returns), returns, garch_coefs, model_specification, model_evaluation)
+                        names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation")
+                        garch_model_selection[[length(garch_model_selection)+1]] = garch_model 
+                    
+                  }
+                }
+              }
+            }
             
-          m1=garchFit(returns~garch(1,2),data=returns,cond.dist = "std",trace=F)
-          summary(m1)
+            # select optimal model according to AIC / BIC
+              # initialize criterion value and index for best model
+                aic_selected_model = c(10^10,0) #
+                bic_selected_model = c(10^10,0)
+                names(aic_selected_model)  = c("minimum_AIC","model_position")
+                names(bic_selected_model)  = c("minimum_bic","model_position")
+              
+              # find model with lowest value for criterion
+              for (i in 1:length(garch_model_selection)) {
+                 if (aic_selected_model[1] >garch_model_selection[[i]]$model_evaluation$aic_model){
+                    aic_selected_model[1:2] = c(garch_model_selection[[i]]$model_evaluation$aic_model, i)
+                 }
+                 if (bic_selected_model[1] >garch_model_selection[[i]]$model_evaluation$bic_model){
+                    bic_selected_model[1:2] = c(garch_model_selection[[i]]$model_evaluation$bic_model, i)
+                 }
+              }
+              
+              # select model with lowest value for criterion
+              print("Selected Models")
+              if (aic_selected_model[2] == bic_selected_model[2]){
+                print("Same Model selected by AIC and BIC")
+                selected_model = garch_model_selection[[aic_selected_model[2]]]
+                print("Model Specification")
+                print(selected_model$model_specification)
+              }
+              if (aic_selected_model[2] != bic_selected_model[2]){
+                print("Different Model selected by AIC and BIC")
+                print("Select model manually or via different criterion")
+                #selected_model = garch_model_selection[[aic_selected_model[2]]]
+                #selected_model = garch_model_selection[[bic_selected_model[2]]]
+                #print("Model Specification")
+                #print(selected_model$model_specification)
+              }
+              
+              all_selected_model[[data_iter]] = selected_model
+          }
+            
+          # save estimated GARCH-model
+          saveRDS(all_selected_model, file = "output/univariateModels/univariate_garchs_full_sample.rds")
+          test = readRDS("output/garch_full_sample.rds")
           
           
   
@@ -264,8 +309,8 @@
 
           opt_garch<- function(ar,ma,returns) {
             AIC <- matrix(data=NA,nrow=2,ncol=2)
-            for (j in 1:1) {
-              for (i in 1:1) {
+            for (j in 1:3) {
+              for (i in 1:3) {
                 ug_spec <- ugarchspec(variance.model=list(model="fGARCH", submodel= "TGARCH",garchOrder=c(i,j)), mean.model = list(armaOrder = c(ar, ma), include.mean = TRUE), distribution.model="std") #,submodel="TGARCH"
                 ugfit = ugarchfit(spec = ug_spec, data = returns, solver ='hybrid')
                 info <- infocriteria(ugfit)
