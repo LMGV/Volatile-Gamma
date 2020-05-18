@@ -17,7 +17,7 @@
 
 # Clean Data ----
   oil <- xts(oil$DCOILBRENTEU, order.by = oil$DATE)
-  oil<-oil[!(oil[,1] =="."),] #NA?s are coded as "."
+  oil <-oil[!(oil[,1] =="."),] #NA?s are coded as "."
   
   rub <- xts(rub$`RUB/USD`, order.by = rub$data)
   
@@ -27,6 +27,8 @@
   ts_r <- ts
   ts_r$rub <- dailyReturn(ts$rub, type='log')
   ts_r$oil <- dailyReturn(ts$oil, type='log')
+  ts_r$rub_val <- ts$rub
+  ts_r$oil_val <- ts$oil
   ts_r <- ts_r[-1, ]
 
 # Short Descriptives: Stationarity? 
@@ -83,5 +85,5 @@
 
 #save cleaned data
   #write.table(coredata(ts_r), "data/data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
-  write.table(coredata(ts_r), "data/data_outliers_1.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  write.table(coredata(ts_r), "data/data_outliers_1_with_values.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
   
