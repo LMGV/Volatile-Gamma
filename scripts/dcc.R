@@ -2,10 +2,14 @@
 #AR1 rub
 
 #How does the test work
+  #Second order granger causality
 #Likelihood std for garch(2,2)
 #Get the prediction funtion for dcc
   #conditional var for the forecasts
 #Var
+  #Is there are Matrix for the VAR pars
+#Overleaf
+
 
 #Output for the treegarch:
   #Splits
@@ -50,3 +54,11 @@ spec1 <- dccspec(uspec = uspec.n, dccOrder = c(1,1), distribution = "mvnorm")#, 
 fit1 <- dccfit(spec1, data = ts_r, solver = "solnp", fit = multf, solver.control = ctrl, fit.control = list(scale =TRUE)) #solver =c("solnp", "nlminb", "lbfgs", "gosolnp"))
 
 fit1
+
+
+
+a <- matrix(1:4, nrow = 2, ncol = 2)
+b <- matrix(1:4, nrow = 2, ncol = 2)
+a %*% t(a)
+a
+
