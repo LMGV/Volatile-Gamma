@@ -28,7 +28,9 @@
   
   source("scripts/functions.R") # functions
   source("scripts/garchFunction.R") # functions
-
+  outpathDescriptive = "output/univariateDescriptives/"
+  outpathModels =  "output/univariateModels/"
+  
 # Data Import ----
   # load arima-errors
   # ts_r = read.table('data/data_e.csv', sep = ',')
@@ -49,8 +51,8 @@
           
           
     # test for asymmetries
-      sampleAutocorrelation(ts_r$oil_errors, "oil", 0.05)
-      sampleAutocorrelation(ts_r$rub_errors, "RUBUSD", 0.05)
+      sampleAutocorrelation(ts_r$oil_errors, "oil", 0.05, outpath= outpathDescriptive)
+      sampleAutocorrelation(ts_r$rub_errors, "RUBUSD", 0.05, outpath= outpathDescriptive)
 
           
      # sign bias tests   
@@ -294,11 +296,7 @@
           }
             
           # save estimated GARCH-model
-          saveRDS(all_selected_model, file = "output/univariateModels/univariate_garchs_full_sample.rds")
-          test = readRDS("output/garch_full_sample.rds")
-          
-          
-  
+          saveRDS(all_selected_model, file = paste0(outpathModels,"univariate_garchs_full_sample.rds"))
           
           
           ####Univariate Garch Opt function ####
