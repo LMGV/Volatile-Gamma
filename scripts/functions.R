@@ -52,12 +52,12 @@ sampleAutocorrelation = function(returns, asset_name, significance_level) {
 
 
 ## short helper functiions ----
-aic = function(log_likelihood, number_parms) {
+my_aic = function(log_likelihood, number_parms) {
   aic = -2*log_likelihood+ 2*number_parms
   return(aic)
 }
 
-bic = function(log_likelihood, number_parms, T) {
+my_bic = function(log_likelihood, number_parms, T) {
   bic = -2*log_likelihood+ log(T)*number_parms
   return(bic)
 }
