@@ -23,6 +23,11 @@ oil_spec <- ugarchspec(variance.model=list(model=model_oil, submodel = submodel_
                        mean.model=list(armaOrder=c(0,0), include.mean=TRUE),
                        distribution.model=distr_oil)
 
+#fixed.pars <- full_sample[["oil"]][["garch_coefs"]]
+
+#fixed.pars_list <- list("mu" = fixed.pars$mu_return, "omega" = fixed.pars$constant_garch, "alpha1" = fixed.pars$ma1, "beta1" = fixed.pars$ar1, "eta11" = fixed.pars$threshhold_coef, "shape"=fixed.pars$df_t_distrib) 
+
+#oil_spec@model$fixed.pars <- fixed.pars_list
 
 returns_oil <- full_sample[["oil"]][["return_data"]]
 ug_fit = ugarchfit(spec = oil_spec, data = returns_oil, solver ='hybrid')
@@ -51,6 +56,11 @@ rub_spec <- ugarchspec(variance.model=list(model=model_rub, submodel = submodel_
                        mean.model=list(armaOrder=c(0,0), include.mean=TRUE),
                        distribution.model=distr_rub)
 
+#fixed.pars <- full_sample[["rub"]][["garch_coefs"]]
+
+#fixed.pars_list <- list("mu" = fixed.pars$mu_return, "omega" = fixed.pars$constant_garch, "alpha1" = fixed.pars$ma1, "beta1" = fixed.pars$ar1, "shape"=fixed.pars$df_t_distrib ) 
+
+#rub_spec@model$fixed.pars <- fixed.pars_list
 
 returns_rub <- full_sample[["rub"]][["return_data"]]
 ug_fit = ugarchfit(spec = rub_spec, data = returns_rub, solver ='hybrid', fit.control = list(stationarity = 1, fixed.se = 0, scale = 0))
@@ -79,6 +89,7 @@ multf@fit[[2]]@model[["pars"]][17,1] <- fixed.pars.oil$df_t_distrib
 
 spec1 <- dccspec(uspec = uspec.n, dccOrder = c(1,1), distribution = "mvt")#, 'mvt'fixed.pars = "fixed.se")#fixed.pars = as.list(coef(sgarch.fit)))
 fit1 <- dccfit(spec1, data = returns, solver = "solnp", fit = multf, fit.control = list(scale =TRUE)) #solver =c("solnp", "nlminb", "lbfgs", "gosolnp"))
+fit1
 
 
 
