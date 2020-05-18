@@ -1,6 +1,6 @@
 # garch function
 
-garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_threshhold,type, distribution) { 
+garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_threshhold, distribution) { 
   {
     # Inputs
       # theta: AR-coefs, MA-coefs, Treshhold, df of t-distribution
@@ -8,8 +8,7 @@ garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_thre
       # ar: order AR process for squared returns
       # ma: order MA process for squared returns
       # threshhold: T/F. if T, then # cols of data_treshhold is number of threshhold parameters. if F then inactive
-      # data_treshhold: only evaluated if threshhold = T
-      # type: GARCH-model type.
+      # data_treshhold: only evaluated if threshhold = T. ATM not used
       # distribution: normal / t
     
     # Outputs
@@ -22,15 +21,16 @@ garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_thre
         print("Error: non-supported distribution type in garchEstimation")
       } 
       # number of parameters to be estimated equals dim of theta
-      if (length(theta) != (1+1 + ar+ma+as.numeric(threshhold) + as.numeric(distribution=="t"))) { # number of parms: mean return+ constant + ar +ma + threshhold_parameter (if active) + degrees of freedom t (if active)
+      if (length(theta) != (1+1 + ma+ ar+ as.numeric(threshhold) + as.numeric(distribution=="t"))) { # number of parms: mean return+ constant + ar +ma + threshhold_parameter (if active) + degrees of freedom t (if active)
         print("Error: Number of input parameters does not match length of parameter vector in garchEstimation")
       } 
-
+    
+    
       # assign coefficients:
       mu_coef = theta[1]
       constant_coef = theta[2]
-      ar_coef = theta[(1:ar)+2]
-      ma_coef = theta[((ar+1):(ar+ma))+2]
+      ma_coef = theta[(1:ma)+2]
+      ar_coef = theta[((ma+1):(ma+ar))+2]
       th_coef = ifelse(threshhold==T, theta[(ar+ma+1)+2],NA)
       df_t_coef = ifelse(distribution=="t", theta[(ar+ma+1+as.numeric(threshhold))+2],NA)
     
@@ -78,10 +78,10 @@ garchEstimation = function(theta, returns, ar, ma, threshhold,th_value,data_thre
     
     # calc log likelihood of model
       if (distribution=="normal"){
-        log_liklihood = (n+1-max_lags)*log(sqrt(2*pi))+sum(0.5*((data[max_lags:(n+1)]-mean_ret[max_lags:(n+1)])^2)/sigmasq[max_lags:(n+1)]) + sum(0.5*log(sigmasq[max_lags:(n+1)]))
+        log_liklihood = (n+1-max_lags)*log(sqrt(2*pi))+sum(0.5*((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/sigmasq[(max_lags+1):(n+1)]) + sum(0.5*log(sigmasq[(max_lags+1):(n+1)]))
         return(log_liklihood)
       } else  if (distribution=="t"){
-        log_liklihood = -(n+1-max_lags)*log(gamma((df_t_coef+1)/2)/(gamma(df_t_coef/2)*sqrt(pi*(df_t_coef-2)))) + (df_t_coef+1)/2*sum(log(1+((data[max_lags:(n+1)]-mean_ret[max_lags:(n+1)])^2)/((df_t_coef-2)*sigmasq[max_lags:(n+1)]))) + 0.5*sum(log(sigmasq[max_lags:(n+1)]))
+        log_liklihood = -(n+1-max_lags)*log(gamma((df_t_coef+1)/2)/(gamma(df_t_coef/2)*sqrt(pi*(df_t_coef-2)))) + (df_t_coef+1)/2*sum(log(1+((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/((df_t_coef-2)*sigmasq[(max_lags+1):(n+1)]))) + 0.5*sum(log(sigmasq[(max_lags+1):(n+1)]))
         return(log_liklihood)
       }
       
@@ -118,7 +118,7 @@ my.loglike.t=function(theta) #Estimate an asymmetric GARCH(1,1) model with Stude
     
     # my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]*(data[i-1]-my.mean[i-1])^2*((data[i-1]-my.mean[i-1])<=0)+theta[5]^2*my.sigmasq[i-1] #GJR-GARCH(1,1)
     
-    #my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]*(data[i-1]-my.mean[i-1])^2*((data[i-1]-my.mean[i-1])<=0)+theta[5]^2*my.sigmasq[i-1] #GJR-GARCH(1,1)
+    # my.sigmasq[i]=theta[2]^2 + theta[3]^2*(data[i-1]-my.mean[i-1])^2 + theta[4]*(data[i-1]-my.mean[i-1])^2*((data[i-1]-my.mean[i-1])<=0)+theta[5]^2*my.sigmasq[i-1] #GJR-GARCH(1,1)
     
     #my.sigma[i]=theta[2]^2+theta[3]^2*(abs((data[i-1]-my.mean[i-1]))-theta[4]*(data[i-1]-my.mean[i-1]))+theta[5]^2*my.sigma[i-1] #PGARCH(1,1) with d=1
     #my.sigmasq[i]=theta[2]^2+theta[3]^2*(abs((data[i-1]-my.mean[i-1]))-theta[4]*(data[i-1]-my.mean[i-1]))^2+theta[5]^2*my.sigmasq[i-1] #PGARCH(1,1) with d=2
@@ -128,9 +128,9 @@ my.loglike.t=function(theta) #Estimate an asymmetric GARCH(1,1) model with Stude
   #my.sigmasq=exp(log.sigmasq)
   
   # normdistrib, GARCH 1/1
-  #1/2*sum(log(my.sigmasq[2:(n+1)])) - sum(log(dnorm((data[2:(n+1)]-my.mean[2:(n+1)])/sqrt(my.sigmasq[2:(n+1)]))))
+  1/2*sum(log(my.sigmasq[2:(n+1)])) - sum(log(dnorm((data[2:(n+1)]-my.mean[2:(n+1)])/sqrt(my.sigmasq[2:(n+1)]))))
   
   #tdistrib
-  1/2*sum(log(my.sigmasq[2:(n+1)]*(theta[6]-2)/theta[6])) - sum(log(dt((data[2:(n+1)]-my.mean[2:(n+1)])/sqrt(my.sigmasq[2:(n+1)]*(theta[6]-2)/theta[6]),df=theta[6])))+10^(10)*(theta[6]<2)+10^(10)*(theta[6]>10)
+  #1/2*sum(log(my.sigmasq[2:(n+1)]*(theta[6]-2)/theta[6])) - sum(log(dt((data[2:(n+1)]-my.mean[2:(n+1)])/sqrt(my.sigmasq[2:(n+1)]*(theta[6]-2)/theta[6]),df=theta[6])))+10^(10)*(theta[6]<2)+10^(10)*(theta[6]>10)
   # return(-n*log(gamma((theta[6]+1)/2)/(gamma(theta[6]/2)*sqrt(pi*(theta[6]-2)))) + (theta[6]+1)/2*sum(log(1+((data[2:(n+1)]-my.mean[2:(n+1)])^2)/((theta[6]-2)*my.sigmasq[2:(n+1)]))) + 0.5*sum(log(my.sigmasq[2:(n+1)])))
 }

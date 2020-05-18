@@ -29,62 +29,16 @@
   source("scripts/functions.R") # functions
   source("scripts/garchFunction.R") # functions
 
-# parameters
-quantile_outliers = 0.001 # cut 0.1% of right and left tail
-
-
-####Data Import####
-  ts_r = read.table('data/data.csv', sep = ',')
+# Data Import ----
+  # load arima-errors
+  ts_r = read.table('data/data_e.csv', sep = ',')
   ts_r = xts(ts_r, order.by = as.Date(rownames(ts_r)))
   
   
-# descriptives / arima. replace later ----
-          # Remove Outliers via empirical quantiles
-          ts_r <- ts_r[(ts_r$rub > quantile(ts_r$rub,quantile_outliers)) & (ts_r$rub < quantile(ts_r$rub,1-quantile_outliers)) & (ts_r$oil > quantile(ts_r$oil,quantile_outliers))& (ts_r$oil < quantile(ts_r$oil,1-quantile_outliers))]
-          
-          
-          ####Mean####
-          print("Mean of Rubel log returns")
-          mean(ts_r$rub)
-          
-          print("Mean of oil log returns")
-          mean(ts_r$oil)
-          
-          ####Summary Statitics####
-          summary_oil <- describe(ts_r$oil)
-          summary_rub <- describe(ts_r$rub)
-          
-          ####Test for Normalily QQ plot####
-          qqnorm(ts_r$rub)
-          qqline(ts_r$rub)
-          
-          qqnorm(ts_r$oil)
-          qqline(ts_r$oil)
-          
-          jarque.bera.test(ts_r$rub)
-          jarque.bera.test(ts_r$oil)
-          
-          ####Fit####
-          # CHECK which method returns plausible results. vary outlier quantile and see if t fits better then
-          fitdist(as.vector(ts_r$rub),"t", method = "mge", start = list(df=2))
-          
-          ####ACF r####
-          acf(ts_r$oil, lag.max = 30, plot = TRUE)
-          acf(ts_r$rub, lag.max = 30, plot = TRUE)
-          
-          pacf(ts_r$rub, lag.max = 30, plot = TRUE)
-          pacf(ts_r$oil, lag.max = 30, plot = TRUE)
-          
-          ####ARIMA####
-          arma_oil <- auto.arima(ts_r$oil)
-          arma_rub <- auto.arima(ts_r$rub)
-          
-          oil_ar <- arma_oil[["arma"]][1]
-          oil_ma <- arma_oil[["arma"]][2]
-          
-          rub_ar <- arma_oil[["arma"]][1]
-          rub_ma <- arma_oil[["arma"]][2]
-
+## remove later
+  quantile_outliers = 0.002 #disabled
+  ts_r <- ts_r[(ts_r$rub > quantile(ts_r$rub,quantile_outliers)) & (ts_r$rub < quantile(ts_r$rub,1-quantile_outliers)) & (ts_r$oil > quantile(ts_r$oil,quantile_outliers))& (ts_r$oil < quantile(ts_r$oil,1-quantile_outliers))]
+  
           
 
 # Garch Function ----
@@ -93,17 +47,16 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
     # ACF / PACF r^2 
     #need to adjust confidence bounds, portm-test
       ts_r2 <- ts_r^2
-      acf(ts_r2$oil, lag.max = 30, plot = TRUE)
-      acf(ts_r2$rub, lag.max = 30, plot = TRUE)  
-      pacf(ts_r2$oil, lag.max = 30, plot = TRUE)
-      pacf(ts_r2$rub, lag.max = 30, plot = TRUE)  
+      acf(ts_r2$oil_errors, lag.max = 30, plot = TRUE)
+      acf(ts_r2$rub_errors, lag.max = 30, plot = TRUE)  
+      pacf(ts_r2$oil_errors, lag.max = 30, plot = TRUE)
+      pacf(ts_r2$rub_errors, lag.max = 30, plot = TRUE)  
       # suggests high order AR lags
           
           
     # test for asymmetries
-      # autocorrelation
-      sampleAutocorrelation(ts_r$oil, "oil", 0.05)
-      sampleAutocorrelation(ts_r$rub, "RUBUSD", 0.05)
+      sampleAutocorrelation(ts_r$oil_errors, "oil", 0.05)
+      sampleAutocorrelation(ts_r$rub_errors, "RUBUSD", 0.05)
 
           
      # sign bias tests   
@@ -123,7 +76,7 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
           
      
    # tree garch test ----
-            returns = ts_r$oil
+            returns = ts_r$oil_errors
 
               # define possible split variables
                 # past returns, epsilons, variances of own process and other processes
@@ -151,7 +104,7 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
              # step 1) find optimal GARCH 1/1 for full sample. remove first max_lags obs since they are not used by TreeGarch either
                  source("scripts/garchFunction.R") # functions
                  # inputs fct
-                 returns=ts_r$rub
+                 returns=ts_r$rub_errors
                  ar = 1
                  ma = 1
                  threshhold = F
@@ -219,39 +172,88 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
           
           source("scripts/garchFunction.R") # functions
           # inputs fct
-          returns=ts_r$oil
-          ar = 1
-          ma = 1
-          threshhold = F
-          th_value  = 0 # not optimized within fct
-          data_threshhold = 0
-          type = "GARCH"
-          distribution ="normal"
-          start_parms = c(0,0.1, rep(0.5,ar), rep(0.1,ma),0,6) # initialize parms
-          opt_parms= nlm(garchEstimation,start_parms,
-                         returns = returns,  ar = ar, ma = ma,
-                         threshhold = threshhold, th_value = th_value, data_threshhold = data_threshhold,
-                         type=type, distribution=distribution,
-                         print.level=1,steptol = 1e-6, iterlim=1000, check.analyticals=T)
-          opt_parms$estimate
-          save
+            returns=ts_r$rub_errors
+            ma = 1
+            ar = 2
+            threshhold = T
+            th_value  = 0 # not optimized within fct
+            data_threshhold = 0 # not implemented 
+            distribution ="t"
+            
+          # starting parms
+            start_parms = c(0,0.1,  rep(0.1,ma), rep(0.5,ar)) # initialize parms. 
+            if(threshhold==T){
+              start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
+            }
+            if(distribution=="t"){
+              start_parms=  c(start_parms, 6) # keep df_t > 2 due to likelihood fct
+            }
+            
+          # get list for input specification
+            number_parms_estimated = length(start_parms)
+            model_specification = list(number_parms_estimated,ma,ar,threshhold, distribution,th_value)
+            names(model_specification) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value")
+            
+
+            
+            opt_parms= nlm(garchEstimation,start_parms,
+                           returns = returns,  ma = model_specification$number_ma, ar = model_specification$number_ar, 
+                           threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = data_threshhold,
+                           distribution=model_specification$distribution,
+                           print.level=1,steptol = 1e-6, iterlim=1000, check.analyticals=T)
           
-          m1=garchFit(returns~garch(1,2),data=returns,trace=F)
+          # model parameters
+            names_parms =  c("mu_return", "constant_garch", paste0("ma",seq(1:ma)), paste0("ar",seq(1:ar)))
+            if(threshhold==T){
+              names_parms=  c(names_parms, "threshhold_coef") # set asymmetry parameter to 0 
+            }
+            if(distribution=="t"){
+              names_parms=  c(names_parms, "df_t_distrib") # keep df_t > 2 due to likelihood fct
+            }
+            
+            garch_coefs = as.data.frame(t(c(opt_parms$estimate[1:2], opt_parms$estimate[3:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))
+            colnames(garch_coefs) = names_parms
+           
+            print("GARCH coefs") 
+            print(garch_coefs)
+            
+          # model evaluation
+            
+            # stationarity
+              sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
+              if(threshhold==T){
+                sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$threshhold_coef # adjust if threshhold is active
+              }
+              print("Sum of Coefs (including threshhold)")
+              print(sum_coefs)
+          
+            # model selection
+              print("log_likelihood")
+              loglik_model =-opt_parms$minimum
+              loglik_model
+              print("AIC")
+              aic_model = my_aic(loglik_model, model_specification$number_parms_estimated)
+              aic_model
+              print("BIC")
+              bic_model = my_bic(loglik_model, model_specification$number_parms_estimated, length(returns))
+              bic_model
+              
+          # save model evaluation in list  
+            model_evaluation = list(sum_coefs,loglik_model, aic_model, bic_model)
+            names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
+          
+          # save model evaluation in list
+            garch_model = list(colnames(returns), returns, garch_coefs, model_specification, model_evaluation)
+            names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation")
+          
+            saveRDS(garch_model, file = "output/garch_oil.rds")
+            test = readRDS("output/garch_oil.rds")
+            
+          m1=garchFit(returns~garch(1,2),data=returns,cond.dist = "std",trace=F)
           summary(m1)
           
-          # Audrino fct
-
-          par.start=c(rep(0.5,4),0,6)
-          my.optpar= nlm(my.loglike.t,par.start,iterlim=1000,print.level=1)
-          my.optpar$estimate
-          save =  my.optpar$estimate
           
-          names_coefs = c("exp_ret","constant", "MA1",  "threshhold_parm", "AR1")
-          names_coefs
-          c(my.optpar$estimate[1], my.optpar$estimate[2]^2,my.optpar$estimate[3]^2,my.optpar$estimate[4] ,my.optpar$estimate[5]^2 )          # make sure to revert squares in parms
-          
-          
-
+  
           
           
           ####Univariate Garch Opt function ####
@@ -262,23 +264,23 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
 
           opt_garch<- function(ar,ma,returns) {
             AIC <- matrix(data=NA,nrow=2,ncol=2)
-            for (j in 1:5) {
-              for (i in 1:5) {
-                ug_spec <- ugarchspec(variance.model=list(model="fGARCH", submodel= "TGARCH",garchOrder=c(i,j)), mean.model = list(armaOrder = c(ar, ma), include.mean = TRUE), distribution.model="sstd") #,submodel="TGARCH"
+            for (j in 1:1) {
+              for (i in 1:1) {
+                ug_spec <- ugarchspec(variance.model=list(model="fGARCH", submodel= "TGARCH",garchOrder=c(i,j)), mean.model = list(armaOrder = c(ar, ma), include.mean = TRUE), distribution.model="std") #,submodel="TGARCH"
                 ugfit = ugarchfit(spec = ug_spec, data = returns, solver ='hybrid')
                 info <- infocriteria(ugfit)
                 AIC[j,i] <- info[2,1]
               }
             }
             opt_garch <- which(AIC == min(AIC,na.rm=TRUE), arr.ind=TRUE)
-            ug_spec <- ugarchspec(variance.model=list(model="fGARCH",submodel= "TGARCH", garchOrder=c(opt_garch[1],opt_garch[2])), mean.model = list(armaOrder = c(ar, ma), include.mean = TRUE), distribution.model="sstd") # ,submodel="TGARCH"
+            ug_spec <- ugarchspec(variance.model=list(model="fGARCH",submodel= "TGARCH", garchOrder=c(opt_garch[1],opt_garch[2])), mean.model = list(armaOrder = c(ar, ma), include.mean = TRUE), distribution.model="std") # ,submodel="TGARCH"
             ug_fit = ugarchfit(spec = ug_spec, data = returns, solver ='hybrid')
             output <- list("Specs"=ug_spec,"fit"=ug_fit)
           }
           
           ####Uni-Garch Specs Oil and RUB####
-          output_oil <- opt_garch(oil_ar,oil_ma, ts_r$oil)
-          output_rub <- opt_garch(rub_ar,rub_ma, ts_r$rub)
+          output_oil <- opt_garch(0,0, ts_r$oil_errors)
+          output_rub <- opt_garch(0,0, ts_r$rub_errors)
           
           #Garch summary Oil
           output_oil[["fit"]]
@@ -287,8 +289,8 @@ quantile_outliers = 0.001 # cut 0.1% of right and left tail
           output_rub[["fit"]]
           
           ####Bivar Garch####
-          cor(ts_r$rub,ts_r$oil)
+          cor(ts_r$rub_errors,ts_r$oil_errors)
           var(ts_r)
           var(ts_r^2)
-          cor(ts_r$rub^2,ts_r$oil^2)
+          cor(ts_r$rub_errors^2,ts_r$oil_errors^2)
           
