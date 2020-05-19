@@ -153,7 +153,6 @@
           write.csv(table_struc_break2_2, file = paste0(outpathDescriptive,"table_struc_break2_2_",names(returns),".csv"))
         
           
-        #disable 3rd break to simplify
           # manually select by looking at table
           struc_break2_1 = as.Date('2005-01-01') # minimal p-value for rub. No breaks for oil, but will still apply it to both
           struc_break2_2 = as.Date('2014-04-01') # no rejection of null hypothesis for rub. rejection on '2014-04-01' for oil, p-value of rub at 0.08. apply break
@@ -358,12 +357,13 @@
                                          print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
                         
                         # get model parameters
-                          names_parms =  c("mu_return", "constant_garch", paste0("ma",seq(1:ma)), paste0("ar",seq(1:ar)))
+                          # get same sames as in DCC function
+                          names_parms =  c("mu", "omega", paste0("alpha",seq(1:ma)), paste0("beta",seq(1:ar)))
                           if(threshhold==T){
-                            names_parms=  c(names_parms, "threshhold_coef") # set asymmetry parameter to 0 
+                            names_parms=  c(names_parms, "eta11") # set asymmetry parameter to 0 
                           }
                           if(distribution=="t"){
-                            names_parms=  c(names_parms, "df_t_distrib") # keep df_t > 2 due to likelihood fct
+                            names_parms=  c(names_parms, "shape") # keep df_t > 2 due to likelihood fct
                           }
                           
                           garch_coefs = as.data.frame(t(c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))

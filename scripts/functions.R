@@ -53,7 +53,7 @@ find_structural_break = function(returns,grid_struct_breaks, start_parms, model_
                  distribution=model_specification$distribution,
                  print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
   
-  # estimate 2 ARCH models for before and after structural breaks in grid 
+  # estimate 2 GARCH models for before and after structural breaks in grid 
   for (break_iter in 1:length(grid_struct_breaks)) {
     sample_before = returns[index(returns) < grid_struct_breaks[break_iter]]
     sample_after   = returns[index(returns) >= grid_struct_breaks[break_iter]]
