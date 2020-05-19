@@ -29,9 +29,6 @@
   source("scripts/garchFunction.R") # functions
   outpathDescriptive = "output/univariateDescriptives/"
   outpathModels =  "output/univariateModels/"
-  
-# Import Data ----
- garch_data_ts_r  = readRDS("output/univariateDescriptives/garch_data_ts_r.rds") # selected garch data after struc break analysis
 
      
    # Tree GARCH (1,1) ----
@@ -118,7 +115,11 @@
             
               # step 3) prune: choose subtree that minimized sum AIC
             
+           
 
+   
+          # news impact curve:
+            # IMPLEMENT
                
       # Optimal fullsample GARCH model ----
          # possible model specifications
@@ -130,11 +131,21 @@
          distribution_choices =c("normal","t")
 
         # input data
-         # estimate model for each series and timeframe given
-           number_timeframes = 1
-           returns_list=list(garch_data_ts_r$rub_errors, garch_data_ts_r$oil_errors) # garch_data_ts_r only contains 1 dataframe. if multiple, then get all series for all timeframes in return_list
+         # estimate model for each series before and after structural break
+            # version for 3 timeframes
+               returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors,
+                                 ts_r_struc_break$timeframe3$rub_errors, 
+                                 ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors,
+                                 ts_r_struc_break$timeframe3$oil_errors)
                
-           names(returns_list) = c("rub_all","oil_all") #!! rename if multiple timeframes are estimated
+              
+
+          # version for 4 timeframes
+            # returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors, 
+            #                   ts_r_struc_break$timeframe3$rub_errors, ts_r_struc_break$timeframe4$rub_errors,
+            #                   ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors, 
+            #                   ts_r_struc_break$timeframe3$oil_errors, ts_r_struc_break$timeframe4$oil_errors)
+          names(returns_list) = paste0(c(rep("rub_", length(ts_r_struc_break)),rep("oil_", length(ts_r_struc_break))), rep(names(ts_r_struc_break),2))
 
         # initialize selected model list for all univeriate series
           all_selected_model = vector("list", length = length(returns_list))
@@ -199,7 +210,7 @@
                             # stationarity
                             sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
                             if(threshhold==T){
-                              sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$eta11 # adjust if threshhold is active
+                              sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$threshhold_coef # adjust if threshhold is active
                             }
                             
                             # model selection
@@ -256,6 +267,7 @@
               
               all_selected_model[[data_iter]] = selected_model
           }
+          
         # save estimated GARCH-model
         saveRDS(all_selected_model, file = paste0(outpathModels,"univariate_garchs_full_sample.rds"))
         
