@@ -181,12 +181,20 @@
       }
         
     # save return for each timeperiod
+        # only use struc_break1 and struc_break2_1 (struc_break2_2 is not sign for both. requires)
         ts_r_time1 = ts_r[(time(ts_r) < struc_break2_1)]
         ts_r_time2 = ts_r[(time(ts_r) >= struc_break2_1) & (time(ts_r)< struc_break1)]
-        ts_r_time3 = ts_r[(time(ts_r) >= struc_break1) & (time(ts_r)< struc_break2_2)]
-        ts_r_time4 = ts_r[(time(ts_r) >= struc_break2_2)]
-        ts_r_struc_break = list(ts_r_time1,ts_r_time2,ts_r_time3,ts_r_time4)
-        names(ts_r_struc_break) = c("timeframe1", "timeframe2", "timeframe3", "timeframe4")
+        ts_r_time3 = ts_r[(time(ts_r) >= struc_break1)]
+        
+        ts_r_struc_break = list(ts_r_time1,ts_r_time2,ts_r_time3)
+        names(ts_r_struc_break) = c("timeframe1", "timeframe2", "timeframe3")
+
+        
+        # option: use all structural breaks
+          # ts_r_time3 = ts_r[(time(ts_r) >= struc_break1) & (time(ts_r)< struc_break2_2)]
+          # ts_r_time4 = ts_r[(time(ts_r) >= struc_break2_2)]
+          # ts_r_struc_break = list(ts_r_time1,ts_r_time2,ts_r_time3,ts_r_time4)
+          # names(ts_r_struc_break) = c("timeframe1", "timeframe2", "timeframe3", "timeframe4")
      
    # Tree GARCH (1,1) ----
             returns = ts_r$oil_errors
@@ -289,10 +297,18 @@
 
         # input data
          # estimate model for each series before and after structural break
-          returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors, 
-                            ts_r_struc_break$timeframe3$rub_errors, ts_r_struc_break$timeframe4$rub_errors,
-                            ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors, 
-                            ts_r_struc_break$timeframe3$oil_errors, ts_r_struc_break$timeframe4$oil_errors)
+            # version for 3 timeframes
+               returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors,
+                                 ts_r_struc_break$timeframe3$rub_errors, 
+                                 ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors,
+                                 ts_r_struc_break$timeframe3$oil_errors)
+
+
+          # version for 4 timeframes
+            # returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors, 
+            #                   ts_r_struc_break$timeframe3$rub_errors, ts_r_struc_break$timeframe4$rub_errors,
+            #                   ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors, 
+            #                   ts_r_struc_break$timeframe3$oil_errors, ts_r_struc_break$timeframe4$oil_errors)
           names(returns_list) = paste0(c(rep("rub_", length(ts_r_struc_break)),rep("oil_", length(ts_r_struc_break))), rep(names(ts_r_struc_break),2))
 
         # initialize selected model list for all univeriate series
@@ -421,6 +437,7 @@
         # investigate results
         for(i in 1:length(all_selected_model)) {
           print(all_selected_model[[i]]$series_name)
+          print(all_selected_model[[i]]$model_specification)
           print(all_selected_model[[i]]$garch_coefs)
           print(all_selected_model[[i]]$model_evaluation)
         }
@@ -432,9 +449,6 @@
           # ug_fit= ugarchfit(spec = ug_spec, data = returns, solver ='hybrid')
           # ug_fit
 
-        
-        returns_break3_1
-        returns_break3_2
         
         garchFit(~ garch(1, 1), data = returns_break3_2$rub_errors, trace = F)
         
