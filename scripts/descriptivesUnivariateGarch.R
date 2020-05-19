@@ -34,7 +34,7 @@ outpathModels =  "output/univariateModels/"
 # Data Import ----
 # load arima-errors
 # ts_r = read.table('data/data_e.csv', sep = ',')
-ts_r = read.table('data/data_removed_outliers_1.csv', sep = ',')
+ts_r = read.table('data/data_removed_outliers_1_with_values.csv', sep = ',')
 ts_r = xts(ts_r, order.by = as.Date(rownames(ts_r)))
 
 # Purely descriptive volatility plot ----

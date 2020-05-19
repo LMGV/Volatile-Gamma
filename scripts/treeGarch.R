@@ -30,7 +30,8 @@
   outpathDescriptive = "output/univariateDescriptives/"
   outpathModels =  "output/univariateModels/"
   
- garch_data_ts_r  = readRDS("output/univariateDescriptives/garch_data_ts_r.rds")
+# Import Data ----
+ garch_data_ts_r  = readRDS("output/univariateDescriptives/garch_data_ts_r.rds") # selected garch data after struc break analysis
 
      
    # Tree GARCH (1,1) ----
@@ -117,11 +118,7 @@
             
               # step 3) prune: choose subtree that minimized sum AIC
             
-           
 
-   
-          # news impact curve:
-            # IMPLEMENT
                
       # Optimal fullsample GARCH model ----
          # possible model specifications
@@ -134,10 +131,10 @@
 
         # input data
          # estimate model for each series and timeframe given
-         number_timeframes = 1
+           number_timeframes = 1
            returns_list=list(garch_data_ts_r$rub_errors, garch_data_ts_r$oil_errors) # garch_data_ts_r only contains 1 dataframe. if multiple, then get all series for all timeframes in return_list
                
-           names(returns_list) = paste0(c(rep("rub_", number_timeframes),rep("oil_", number_timeframes)), rep(names(garch_data_ts_r),2))
+           names(returns_list) = c("rub_all","oil_all") #!! rename if multiple timeframes are estimated
 
         # initialize selected model list for all univeriate series
           all_selected_model = vector("list", length = length(returns_list))
@@ -202,7 +199,7 @@
                             # stationarity
                             sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
                             if(threshhold==T){
-                              sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$threshhold_coef # adjust if threshhold is active
+                              sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$eta11 # adjust if threshhold is active
                             }
                             
                             # model selection
@@ -259,7 +256,6 @@
               
               all_selected_model[[data_iter]] = selected_model
           }
-          
         # save estimated GARCH-model
         saveRDS(all_selected_model, file = paste0(outpathModels,"univariate_garchs_full_sample.rds"))
         
