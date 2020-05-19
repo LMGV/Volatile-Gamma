@@ -94,3 +94,4 @@ fit1
 
 
 
+#What happens if there are two different norm
