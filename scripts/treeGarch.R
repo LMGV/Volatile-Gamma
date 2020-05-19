@@ -35,18 +35,20 @@
 
      
    # Tree GARCH (1,1) ----
-            returns = ts_r$oil_errors
+            returns = as.data.frame(garch_data_ts_r$rub_errors)
+            returns$date = rownames(returns)
+            colnames(returns) = c("return","date")
 
               # define possible split variables
                 # past returns, epsilons, variances of own process and other processes
-                 means = colMeans(ts_r)
-                 epsilon = sweep(ts_r,2,means)
+                 means = colMeans(garch_data_ts_r)
+                 epsilon = sweep(garch_data_ts_r,2,means)
                  epsilon_sq = epsilon^2
-                 colnames(epsilon) = paste0(colnames(ts_r),"_epsilon")
-                 colnames(epsilon_sq) = paste0(colnames(ts_r),"_epsilon_sq")
+                 colnames(epsilon) = paste0(colnames(garch_data_ts_r),"_epsilon")
+                 colnames(epsilon_sq) = paste0(colnames(garch_data_ts_r),"_epsilon_sq")
                  
                  
-                 base_split_variables = as.xts(cbind(ts_r, epsilon, epsilon_sq))
+                 base_split_variables = as.xts(cbind(garch_data_ts_r, epsilon, epsilon_sq))
                  
                  # get 2 lags of each variable. In VAR tests, dependencies were not consistent above the 2nd lag. Are excluded to get parsimonious computationally feasible model
                  max_lags = 2 # number lags for loop such that for all  split vars the same dataset is used (NA in the first observations otherwise)
@@ -56,64 +58,98 @@
                  colnames(lag2) = paste0(colnames(base_split_variables),"_lag2")
                  
                  split_variables = as.data.frame(cbind(lag1 , lag2)) # data frame instead of time series
-
+                 split_variables$date = rownames(split_variables)
                 # possible others: interactions?
-                
+                 
+                # names split variables
+                 list_split_variables = colnames(split_variables)
                  
              # step 1) find optimal GARCH 1/1 for full sample. remove first max_lags obs since they are not used by TreeGarch either
                  source("scripts/garchFunction.R") # functions
                  # inputs fct
-                 returns=ts_r$rub_errors
                  ar = 1
                  ma = 1
                  threshhold = F
                  th_value  = 0 # not optimized within fct
                  data_threshhold = 0
-                 type = "GARCH"
                  distribution ="normal"
-                 start_parms = c(0, 0.1, 0.9,0.1)
+                 start_parms = c(0,0.1,  rep(0.1/ma,ma), rep(0.9/ar,ar)) # initialize parms. 
+                 if(threshhold==T){
+                   start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
+                 }
+                 if(distribution=="t"){
+                   start_parms=  c(start_parms, 6) # keep df_t > 2 due to likelihood fct
+                 }
+                 # estimate basic Garch (1,1) for sample
                  opt_parms= nlm(garchEstimation,start_parms,
-                                returns = returns[(max_lags+1):length(returns)],  ar = ar, ma = ma,
+                                returns = returns$return[(max_lags+1):nrow(returns)],  ar = ar, ma = ma,
                                 threshhold = threshhold, th_value = th_value, data_threshhold = data_threshhold,
-                                type=type, distribution=distribution,
-                                print.level=2,iterlim=1000, check.analyticals=1)
-               
-
+                                distribution=distribution,
+                                print.level=0,iterlim=1000, check.analyticals=1)
               
-          # step 2) split sample via reduction in log likelihood
-               vector_quantiles = seq(1, 7)*0.125 # for threshholds
-             
-             # choose variable for partition
-               list_split_variables = colnames(split_variables)
+              # step 2) split sample via reduction in log likelihood
+                   vector_quantiles = seq(1, 7)*0.125 # for threshholds
+                   
+                   
+                   list_split_variables = colnames(split_variables)
+                   list_split_variables =list_split_variables[1]
+                   
+                 optimal_split = as.data.frame(matrix(nrow = length(list_split_variables), ncol = 3,))
+                 colnames(optimal_split) = c("var_name","threshhold_split","improvementLogLik")
+                 optimal_split$var_name = list_split_variables
+                 
 
-               split_one_covariate = drop_na(select(split_variables, list_split_variables[2])) # assign current split variable and remove first missing obs
-               split_threshholds = quantile(split_one_covariate[,1],vector_quantiles)
+                 # choose variable for split
+                  for (split_var_iter in 1:length(list_split_variables)) {
+                    
+                    split_one_covariate = drop_na(select(split_variables, c(list_split_variables[3],"date"))) # assign current split variable and remove first missing obs
+                    split_threshholds = quantile(split_one_covariate[,1],vector_quantiles)
+                    
+                    
+                    # starting values are parms of first GARCH
+                    start_parms = opt_parms$estimate  
+                    
+                    # initalize result table for one covariate
+                    single_split_criterion_table = as.data.frame(matrix(nrow = length(split_threshholds), ncol = 5,))
+                    colnames(single_split_criterion_table) = c("threshhold_split","improvementLogLik","logLikSample1","logLikSample2","logLikFullSample")
+                    single_split_criterion_table$value_split = split_threshholds
+                    single_split_criterion_table$logLikFullSample = -opt_parms$minimum
+                    
+                    # get return and splitting variable in same dataframe
+                    split_data = select(left_join(returns, split_one_covariate, by="date"), -c("date"))
+                    colnames(split_data) = c("return","split_var")
+                    split_data = split_data[(max_lags+1):nrow(split_data),]
+                    summary(split_data)
+                    
+                    for (i in 1:length(split_threshholds)) {
+                      # split sample starting from first obs that is not NA for splitting value
+                      subsample1 = split_data$return[(split_data$split_var >=split_threshholds[i])]
+                      subsample2 = split_data$return[(split_data$split_var <split_threshholds[i])]
+                      
+                      # estimate GARCH in subsamples and get sum of likelihood
+                      opt_parms1= nlm(garchEstimation,start_parms,
+                                      returns = subsample1,  ar = ar, ma = ma,
+                                      threshhold = F, th_value = 0, data_threshhold = data_threshhold,
+                                      distribution=distribution,
+                                      iterlim=1000, check.analyticals=1)
+                      opt_parms2= nlm(garchEstimation,start_parms,
+                                      returns = subsample2,  ar = ar, ma = ma,
+                                      threshhold = F, th_value = 0, data_threshhold = data_threshhold,
+                                      distribution=distribution,
+                                      iterlim=1000, check.analyticals=1)
+                      single_split_criterion_table$logLikSample1[i] = -opt_parms1$minimum
+                      single_split_criterion_table$logLikSample2[i] = -opt_parms2$minimum
+                    }
+                    
+                    # calc improvement in loglik and save best split
+                      single_split_criterion_table$improvementlogLik = single_split_criterion_table$logLikSample1+single_split_criterion_table$logLikSample2-single_split_criterion_table$logLikFullSample
+                      indic_max_improvement = which.max(single_split_criterion_table$improvementlogLik)
+                      optimal_split[list_split_variables[split_var_iter],2:3] = c(single_split_criterion_table[indic_max_improvement,c("value_split","improvementLogLik")])
+                  }
 
-               
-             # starting values are parms of first GARCH
-               start_parms = opt_parms$estimate  
-              
-              for (i in 1:length(split_threshholds)) {
-                # split sample starting from first obs that is not NA for splitting value
-                subsample1 = returns[(split_one_covariate >=split_threshholds[i])[(max_lags+1):length(returns)]] 
-                subsample2 = returns[(split_one_covariate <split_threshholds[i])[(max_lags+1):length(returns)]]
-                
-                # estimate GARCH in subsamples and get sum of likelihood
-                opt_parms1= nlm(garchEstimation,start_parms,
-                               returns = subsample1,  ar = ar, ma = ma,
-                               threshhold = F, th_value = 0, data_threshhold = data_threshhold,
-                               type=type, distribution=distribution,
-                               iterlim=1000, check.analyticals=1)
-                opt_parms2= nlm(garchEstimation,start_parms,
-                                returns = subsample2,  ar = ar, ma = ma,
-                                threshhold = F, th_value = 0, data_threshhold = data_threshhold,
-                                type=type, distribution=distribution,
-                                iterlim=1000, check.analyticals=1)
-                
-                print(opt_parms$minimum)
-                print(opt_parms1$minimum+ opt_parms2$minimum )
-                
-              }
+    
+                 
+                   
               
             
               # step 3) prune: choose subtree that minimized sum AIC
@@ -308,8 +344,8 @@
           output_rub[["fit"]]
           
           ####Bivar Garch#
-          cor(ts_r$rub_errors,ts_r$oil_errors)
-          var(ts_r)
-          var(ts_r^2)
-          cor(ts_r$rub_errors^2,ts_r$oil_errors^2)
+          # cor(ts_r$rub_errors,ts_r$oil_errors)
+          # var(ts_r)
+          # var(ts_r^2)
+          # cor(ts_r$rub_errors^2,ts_r$oil_errors^2)
           

@@ -25,12 +25,12 @@ Thomson Reuters for Exchange rates and Indices
 
 # Work distribution
 * Erik
-  * Test tree GARCH (univariate)
-  * 
+  * tree GARCH (univariate)
   * write garchPredict fct
-  * 
+  * minzer-z regressions for performance
   * GARCH model analysis: 
-	ACF / PACF + PF tests, updated ConfIntervalls for ARIMIA. Investigate before and after model selection
+	residual analysis
+	pearson goodness of fit test
 
 * Mila
   * Structural Breaks: see file arimaStructural Breaks Start with comments @Mila where you need to change things
