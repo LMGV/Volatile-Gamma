@@ -34,14 +34,14 @@
 # Short Descriptives: Stationarity? 
   # plot cum logreturns
     # ggplot
-      title = "Oil_and_RUBUSD_Cum_Returns"
+      title = "RUBUSD_and_Oil_Cum_Returns"
       xlab = "Time"
       ylab= "CumReturn"
-      y1 = exp(cumsum(ts_r$oil))
-      y2 = exp(cumsum(ts_r$rub))
+      y1 = exp(cumsum(ts_r$rub))
+      y2 = exp(cumsum(ts_r$oil))
       x = time(ts_r)
-      names_y = c("Oil","RUB/USD")
-      line_point_plot_multiple(title, outpath,x,xlab, ylab, names_y, y_percent=F,y_discrete=T, legend=T, y1, y2)
+      names_y = c("RUB/USD", "Oil")
+      line_plot_multiple(title, outpath,x,xlab, ylab, names_y, y_percent=F,y_discrete=T, legend=T, y1, y2)
       
     # normal plot
       plot(exp(cumsum(ts_r$oil)), col = 'darkgreen', main="Oil (green) and Rub/USD (blue)")
@@ -49,18 +49,18 @@
   
   # plot logreturns
       # ggplot
-      title = "Oil_and_RUBUSD_Returns"
+      title = "RUBUSD_and_Oil_Returns"
       xlab = "Time"
       ylab= "DailyReturn"
       y1 = ts_r$rub
       y2 = ts_r$oil
       x = time(ts_r)
-      names_y = c("Oil","RUB/USD")
-      line_point_plot_multiple(title, outpath, x,xlab, ylab, names_y, y_percent=F, y_discrete=T, legend=T, y1, y2)
+      names_y = c("RUB/USD", "Oil")
+      line_plot_multiple(title, outpath, x,xlab, ylab, names_y, y_percent=F, y_discrete=T, legend=T, y1, y2)
       
       # normal plot
+      plot(ts_r$rub, main="RUB/USD")   
       plot(ts_r$oil, main="Oil")
-      plot(ts_r$rub, main="RUB/USD")
       
   # QQ plot for Outliers and Normality (normality will be dealt with later)
       # extreme tail outliers -> remove them since no risk-mgmt application

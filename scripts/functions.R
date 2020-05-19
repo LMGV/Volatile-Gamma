@@ -30,6 +30,52 @@ expected_shortfall_empirical = function(data, significance_level, time) {
   return(expected_shortfall)
 }
 
+supLikelihoodTest = function(loglik_unrestricted, loglik_restricted, number_restrictions, significanceLevel) { 
+  # make sure input is loglikelihood, not negative loglikelihood
+  p_value = 1-pchisq(2*(loglik_unrestricted-loglik_restricted),number_restrictions) 
+  test_result = ifelse(p_value < significanceLevel, F,T)
+  test_result_word = ifelse(p_value < significanceLevel, "h0_rejected","h0_not_rejected")
+  result = c(test_result_word, test_result, p_value, 2*(loglik_unrestricted-loglik_restricted), loglik_unrestricted,loglik_restricted )
+  names(result) = c("test_result_word","test_result","p_value","test_stat" , "logLikUR", "logLikR")
+  return(result)
+}
+
+find_structural_break = function(returns,grid_struct_breaks, start_parms, model_specification, number_restrictions,significance_level) {
+  # initialize test-result table
+  struc_break_test_results = as.data.frame(matrix(nrow = length(grid_struct_breaks), ncol = 7,))
+  colnames(struc_break_test_results) = c("break_date","test_result_word","test_result","p_value","test_stat" , "logLikUR", "logLikR")
+  struc_break_test_results$break_date = grid_struct_breaks
+  
+  # estimate GARCH model for entire timeframe
+  opt_parms= nlm(garchEstimation,start_parms,
+                 returns = returns,  ma = model_specification$number_ma, ar = model_specification$number_ar, 
+                 threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = data_threshhold,
+                 distribution=model_specification$distribution,
+                 print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
+  
+  # estimate 2 ARCH models for before and after structural breaks in grid 
+  for (break_iter in 1:length(grid_struct_breaks)) {
+    sample_before = returns[index(returns) < grid_struct_breaks[break_iter]]
+    sample_after   = returns[index(returns) >= grid_struct_breaks[break_iter]]
+    
+    # estimate GARCH model before and after potential breakpoint
+    opt_parms_before= nlm(garchEstimation,start_parms,
+                          returns = sample_before,  ma = model_specification$number_ma, ar = model_specification$number_ar, 
+                          threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = data_threshhold,
+                          distribution=model_specification$distribution,
+                          print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
+    
+    opt_parms_after= nlm(garchEstimation,start_parms,
+                         returns = sample_after,  ma = model_specification$number_ma, ar = model_specification$number_ar, 
+                         threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = data_threshhold,
+                         distribution=model_specification$distribution,
+                         print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
+    
+    # LR-test
+    struc_break_test_results[break_iter,2:7] = supLikelihoodTest(-opt_parms_before$minimum - opt_parms_after$minimum,-opt_parms$minimum, number_restrictions,significance_level) 
+  }
+  return(struc_break_test_results)
+}   
 
 ## sample autocorrelation plots / table
 sampleAutocorrelation = function(returns, asset_name, significance_level, outpath) {

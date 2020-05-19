@@ -10,7 +10,7 @@
   library(ggfortify)  
   library(zoo)        
   library(xtable)     
-  library(lmtest)     
+  library(lubridate) 
   library(forecast) 
   library(tseries)
   library(xts)
@@ -20,7 +20,6 @@
   library(rmgarch)
   library(psych)
   library(MASS)
-  library(fitdistrplus)
   
   filter <- dplyr::filter
   select <- dplyr::select
@@ -37,8 +36,7 @@
   ts_r = read.table('data/data_removed_outliers_1.csv', sep = ',')
   ts_r = xts(ts_r, order.by = as.Date(rownames(ts_r)))
 
-# Garch Function ----
-    # to see number of lags: just do 
+# Desciptives univariate series ----
           
     # ACF / PACF r^2 
     #need to adjust confidence bounds, portm-test
@@ -55,23 +53,142 @@
       sampleAutocorrelation(ts_r$rub_errors, "RUBUSD", 0.05, outpath= outpathDescriptive)
 
           
-     # sign bias tests   
-     # TODO
-      a=(sp500<0) #Sign Bias
-      a=c()
-      for (i in 1:length(ibm))
-      {
-        a=c(a,100*min(sp500[i],0)) #Negative Size Bias
-        #a=c(a,100*max(sp500[i],0)) #Positive Size Bias
-      }
+ # TODO! sign bias tests   
 
-      h=5
-      b=lm(100*sp500[(h+1):length(ibm)]^2~a[1:(length(ibm)-h)])
-      summary(b)
+      
+  # Structural breaks ----
+    # plot 30d ma daily volatility over time
+      # proxy: mean of 30 day epsilon^2 = (value-mean(30days))^2
+      volatility_plot_data = as.data.frame(ts_r)
+      
+      volatility_plot_data = arrange(volatility_plot_data, index(volatility_plot_data)) %>%
+        mutate(Date = time(ts_r),
+               sd_rub = sqrt(252*rollapply((rub_errors-rollapply(rub_errors,360,mean, na.rm = TRUE, align = "right", fill = NA))^2, 30,mean, na.rm = TRUE, align = "right", fill = NA)),
+               sd_oil = sqrt(252*rollapply((oil_errors-rollapply(oil_errors,360,mean, na.rm = TRUE, align = "right", fill = NA))^2, 30,mean, na.rm = TRUE, align = "right", fill = NA))) %>%
+        filter(is.na(sd_rub)==F & is.na(sd_oil)==F)
+
+      summary(volatility_plot_data)
+      title = "RUBUSD_and_Oil_Volatility"
+      xlab = "Time"
+      ylab= "Annual Volatility (30d-MA of squared deviation)"
+      y1 = volatility_plot_data$sd_rub
+      y2 = volatility_plot_data$sd_oil
+      x = volatility_plot_data$Date
+      names_y = c("RUB/USD","Oil")
+      line_plot_multiple(title, outpath = outpathDescriptive, x,xlab, ylab, names_y, y_percent=T, y_discrete=F, legend=T, y1, y2)
+      
+    # test for structural breaks ----
+      # model specification for testing struc breaks
+        # GARCH 1,1 with t-distrib (TGarch was only useful for oil, will probably yield similar structural breaks)
+          ma = 1
+          ar = 1
+          threshhold = F
+          th_value  = 0 # not optimized within fct
+          data_threshhold = 0 # not implemented 
+          distribution =c("t")
+          
+        # starting parms
+          start_parms = c(0,0.1,  rep(0.1,ma), rep(0.5,ar)) # initialize parms. 
+          if(threshhold==T){
+            start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
+          }
+          if(distribution=="t"){
+            start_parms=  c(start_parms, 4) # keep df_t > 2 due to likelihood fct
+          }
+
+          
+        # combine model specification
+          number_parms_estimated = length(start_parms)
+          model_specification = list(number_parms_estimated,ma,ar,threshhold, distribution,th_value)
+          names(model_specification) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value")
           
           
+      # take simple GARCH 1,1 model with t-errors to determine structural breaks
+        # test for 2 complete models vs 1 complete model
+        number_restrictions = length(start_parms) # number of restrictions is number parms 1 model
+        significance_level = 0.01
+          
+      # input data
+        returns_list=list(ts_r$rub_errors, ts_r$oil_errors)
+        names(returns_list) = c("rub","oil")
+        
+    # Choice univariate return series
+      # test all series and checked that main struc breaks for all series are covered. 
+        # our heuristic method: set same breaks for both series
+          # 1. set ruble structural breaks (key series of interest) 
+          # 2. check performance of those breaks for oil.
+      for (series_iter in 1:length(returns_list))
+      {
+        # set data in loop
+         returns = returns_list[[series_iter]] 
+        
+        # loop over structural break grid: 
+          # procedure: iteratively pick statistically and economically plausible structural break 
+            # check break each quarter
+              min_time_estim = 1
+              start_date = as.Date(as.yearqtr(time(returns)[1], format="%Y-%m-%d"))
+              end_date = as.Date(as.yearqtr(time(returns)[length(returns)], format="%Y-%m-%d"))
+              grid_struct_breaks = seq(start_date+years(min_time_estim), end_date-years(min_time_estim), by = "quarter") # grid of structural breaks. atleast min_time_estim years before and after structural break for estimation
+              
+        #break1
+          table_struc_break1 = find_structural_break(returns,grid_struct_breaks, start_parms, model_specification, number_restrictions,significance_level)
+          write.csv(table_struc_break1, file = paste0(outpathDescriptive,"table_struc_break1_",names(returns),".csv"))
+          
+          # manually select by p_values and chart
+           struc_break1 = as.Date("2008-01-01") 
+           print("Set struc break for both series")
+           print(struc_break1)
+          
+        # break2
+          returns_break2_1  =returns[time(returns) < struc_break1]
+          returns_break2_2 =returns[time(returns) >=struc_break1]
+          
+          grid_struct_breaks2_1 = grid_struct_breaks[(grid_struct_breaks>=start_date+years(min_time_estim)) & (grid_struct_breaks <= (struc_break1-years(min_time_estim)))]
+          grid_struct_breaks2_2 = grid_struct_breaks[(grid_struct_breaks<=end_date-years(min_time_estim)) & (grid_struct_breaks >= (struc_break1+years(min_time_estim)))]
+          
+          table_struc_break2_1 = find_structural_break(returns_break2_1,grid_struct_breaks2_1, start_parms, model_specification, number_restrictions, significance_level)
+          table_struc_break2_2 = find_structural_break(returns_break2_2,grid_struct_breaks2_2, start_parms, model_specification, number_restrictions,significance_level)
+          
+          write.csv(table_struc_break2_1, file = paste0(outpathDescriptive,"table_struc_break2_1_",names(returns),".csv"))
+          write.csv(table_struc_break2_2, file = paste0(outpathDescriptive,"table_struc_break2_2_",names(returns),".csv"))
+        
+          
+        #disable 3rd break to simplify
+          # manually select by looking at table
+          struc_break2_1 = as.Date('2005-01-01') # minimal p-value for rub. No breaks for oil, but will still apply it to both
+          struc_break2_2 = as.Date('2014-04-01') # no rejection of null hypothesis for rub. rejection on '2014-04-01' for oil, p-value of rub at 0.08. apply break
+
+        # break3
+          returns_break3_1  =returns_break2_1[time(returns_break2_1) < struc_break2_1]
+          returns_break3_2 =returns_break2_1[time(returns_break2_1) >=struc_break2_1]
+          returns_break3_3  =returns_break2_2[time(returns_break2_2) < struc_break2_2]
+          returns_break3_4 =returns_break2_2[time(returns_break2_2) >=struc_break2_2]
+
+          grid_struct_breaks3_1 = grid_struct_breaks[(grid_struct_breaks>=start_date+years(min_time_estim)) & (grid_struct_breaks <= (struc_break2_1-years(min_time_estim)))]
+          grid_struct_breaks3_2 = grid_struct_breaks[(grid_struct_breaks>=struc_break2_1+years(min_time_estim)) & (grid_struct_breaks <= (struc_break1-years(min_time_estim)))]
+          grid_struct_breaks3_3 = grid_struct_breaks[(grid_struct_breaks>=struc_break1+years(min_time_estim)) & (grid_struct_breaks <= (struc_break2_2-years(min_time_estim)))]
+          grid_struct_breaks3_4 = grid_struct_breaks[(grid_struct_breaks>=struc_break2_2+years(min_time_estim)) & (grid_struct_breaks <= (end_date-years(min_time_estim)))]
+
+          table_struc_break3_1 = find_structural_break(returns_break3_1,grid_struct_breaks3_1, start_parms, model_specification, number_restrictions, significance_level)
+          table_struc_break3_2 = find_structural_break(returns_break3_2,grid_struct_breaks3_2, start_parms, model_specification, number_restrictions,significance_level)
+          table_struc_break3_3 = find_structural_break(returns_break3_3,grid_struct_breaks3_3, start_parms, model_specification, number_restrictions, significance_level)
+          table_struc_break3_4 = find_structural_break(returns_break3_4,grid_struct_breaks3_4, start_parms, model_specification, number_restrictions,significance_level)
+
+          write.csv(table_struc_break3_1, file = paste0(outpathDescriptive,"table_struc_break3_1_",names(returns),".csv"))
+          write.csv(table_struc_break3_2, file = paste0(outpathDescriptive,"table_struc_break3_2_",names(returns),".csv"))
+          write.csv(table_struc_break3_3, file = paste0(outpathDescriptive,"table_struc_break3_3_",names(returns),".csv"))
+          write.csv(table_struc_break3_4, file = paste0(outpathDescriptive,"table_struc_break3_4_",names(returns),".csv"))
+      }
+        
+    # save return for each timeperiod
+        ts_r_time1 = ts_r[(time(ts_r) < struc_break2_1)]
+        ts_r_time2 = ts_r[(time(ts_r) >= struc_break2_1) & (time(ts_r)< struc_break1)]
+        ts_r_time3 = ts_r[(time(ts_r) >= struc_break1) & (time(ts_r)< struc_break2_2)]
+        ts_r_time4 = ts_r[(time(ts_r) >= struc_break2_2)]
+        ts_r_struc_break = list(ts_r_time1,ts_r_time2,ts_r_time3,ts_r_time4)
+        names(ts_r_struc_break) = c("timeframe1", "timeframe2", "timeframe3", "timeframe4")
      
-   # tree garch test ----
+   # Tree GARCH (1,1) ----
             returns = ts_r$oil_errors
 
               # define possible split variables
@@ -161,7 +278,7 @@
           # news impact curve:
             # IMPLEMENT
                
-      # choose optimal GARCH model
+      # Optimal fullsample GARCH model ----
          # possible model specifications
          ma_choices = seq(1:3)
          ar_choices = seq(1:3)
@@ -171,8 +288,12 @@
          distribution_choices =c("normal","t")
 
         # input data
-          returns_list=list(ts_r$rub_errors, ts_r$oil_errors)
-          names(returns_list) = c("rub","oil")
+         # estimate model for each series before and after structural break
+          returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors, 
+                            ts_r_struc_break$timeframe3$rub_errors, ts_r_struc_break$timeframe4$rub_errors,
+                            ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors, 
+                            ts_r_struc_break$timeframe3$oil_errors, ts_r_struc_break$timeframe4$oil_errors)
+          names(returns_list) = paste0(c(rep("rub_", length(ts_r_struc_break)),rep("oil_", length(ts_r_struc_break))), rep(names(ts_r_struc_break),2))
 
         # initialize selected model list for all univeriate series
           all_selected_model = vector("list", length = length(returns_list))
@@ -249,7 +370,7 @@
                             names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
                         
                        # add model to model selection list
-                        garch_model = list(colnames(returns), returns, garch_coefs, model_specification, model_evaluation)
+                        garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification, model_evaluation)
                         names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation")
                         garch_model_selection[[length(garch_model_selection)+1]] = garch_model 
                     
@@ -276,7 +397,6 @@
               }
               
               # select model with lowest value for criterion
-              print("Selected Models")
               if (aic_selected_model[2] == bic_selected_model[2]){
                 print("Same Model selected by AIC and BIC")
                 selected_model = garch_model_selection[[aic_selected_model[2]]]
@@ -285,8 +405,8 @@
               }
               if (aic_selected_model[2] != bic_selected_model[2]){
                 print("Different Model selected by AIC and BIC")
-                print("Select model manually or via different criterion")
-                #selected_model = garch_model_selection[[aic_selected_model[2]]]
+                print("Select Model According to AIC")
+                selected_model = garch_model_selection[[aic_selected_model[2]]]
                 #selected_model = garch_model_selection[[bic_selected_model[2]]]
                 #print("Model Specification")
                 #print(selected_model$model_specification)
@@ -294,17 +414,30 @@
               
               all_selected_model[[data_iter]] = selected_model
           }
-            
-          # save estimated GARCH-model
-          saveRDS(all_selected_model, file = paste0(outpathModels,"univariate_garchs_full_sample.rds"))
           
-          
+        # save estimated GARCH-model
+        saveRDS(all_selected_model, file = paste0(outpathModels,"univariate_garchs_full_sample.rds"))
+        
+        # investigate results
+        for(i in 1:length(all_selected_model)) {
+          print(all_selected_model[[i]]$series_name)
+          print(all_selected_model[[i]]$garch_coefs)
+          print(all_selected_model[[i]]$model_evaluation)
+        }
+
+        
           ####Univariate Garch Opt function ####
       
           # ug_spec= ugarchspec(variance.model=list(model="fGARCH", submodel="GARCH", garchOrder=c(1,1)), mean.model = list(armaOrder = c(0, ), include.mean = TRUE), distribution.model="norm")
           # ug_fit= ugarchfit(spec = ug_spec, data = returns, solver ='hybrid')
           # ug_fit
 
+        
+        returns_break3_1
+        returns_break3_2
+        
+        garchFit(~ garch(1, 1), data = returns_break3_2$rub_errors, trace = F)
+        
           opt_garch<- function(ar,ma,returns) {
             AIC <- matrix(data=NA,nrow=2,ncol=2)
             for (j in 1:3) {
@@ -321,9 +454,9 @@
             output <- list("Specs"=ug_spec,"fit"=ug_fit)
           }
           
-          ####Uni-Garch Specs Oil and RUB####
-          output_oil <- opt_garch(0,0, ts_r$oil_errors)
-          output_rub <- opt_garch(0,0, ts_r$rub_errors)
+          ####Uni-Garch Specs Oil and RUB#
+          output_oil <- opt_garch(0,0, returns_break3_1$rub_errors)
+          output_rub <- opt_garch(0,0, returns_break3_2$rub_errors)
           
           #Garch summary Oil
           output_oil[["fit"]]
@@ -331,7 +464,7 @@
           #Garch summary Oil
           output_rub[["fit"]]
           
-          ####Bivar Garch####
+          ####Bivar Garch#
           cor(ts_r$rub_errors,ts_r$oil_errors)
           var(ts_r)
           var(ts_r^2)
