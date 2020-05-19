@@ -81,24 +81,28 @@ find_structural_break = function(returns,grid_struct_breaks, start_parms, model_
 sampleAutocorrelation = function(returns, asset_name, significance_level, outpath) {
   epsilon_pos = pmax((returns-mean(returns)),0)
   epsilon_neg = pmin((returns-mean(returns)),0)
+  
   # sample autocorrelation
-  num_lags = 40
+  list_lags = c(1,2,5,10,20,40) 
+  num_lags = max(list_lags)
+  
+  lag = seq(1, num_lags)
   corr_pos = rep(0, num_lags)
   corr_neg = rep(0, num_lags)
-  corr = as.data.frame(cbind(corr_pos,corr_neg))
+  corr = as.data.frame(cbind(lag,corr_pos,corr_neg))
   for (h in 1:num_lags)
   {
-    corr[h,1] =  cor(epsilon_pos[(1+h):(length(returns))],(returns-mean(returns))[(1):(length(returns)-h)]) #Leverage effect
-    corr[h,2] = cor(epsilon_neg[(1+h):(length(returns))],(returns-mean(returns))[(1):(length(returns)-h)]) #"reverse" leverage effect
+    corr[h,2] =  cor(epsilon_pos[(1+h):(length(returns))],(returns-mean(returns))[(1):(length(returns)-h)]) #Leverage effect
+    corr[h,3] = cor(epsilon_neg[(1+h):(length(returns))],(returns-mean(returns))[(1):(length(returns)-h)]) #"reverse" leverage effect
   }
-
+  
   # significance autocorrelation
   # approximate variance with 1/T, 2sided test
   corr$corr_pos_p_value  = 1-pnorm(abs(corr$corr_pos *sqrt(length(corr$corr_pos)) * sqrt(length(corr$corr_pos)))) # mu * sqrt(N) * 1/sigma(corr_pos)
   corr$corr_neg_p_value  = 1-pnorm(abs(corr$corr_neg *sqrt(length(corr$corr_neg)) * sqrt(length(corr$corr_neg)))) # mu * sqrt(N) * 1/sigma(corr_neg)
-
+  
   title= paste0("Asymmetries_", asset_name)
-  x = seq(1:num_lags)
+  x = corr$lag
   xlab  ="lags"
   ylab = "correlation"
   names_y = colnames(corr)[1:2]
@@ -108,9 +112,9 @@ sampleAutocorrelation = function(returns, asset_name, significance_level, outpat
   y_percent = F
   y_discrete = F
   print(line_plot_multiple(title, outpath,x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2))
-
+  
   title= paste0("Asymmetries_P_values ", asset_name)
-  x = seq(1:num_lags)
+  x = corr$lag
   xlab  ="lags"
   ylab = "p_value"
   names_y = c(colnames(corr)[3:4], "sign_bound")
@@ -121,12 +125,12 @@ sampleAutocorrelation = function(returns, asset_name, significance_level, outpat
   y_percent = F
   y_discrete = F
   line_plot_multiple(title, outpath, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2,y3)
-
+  
   # prepare table
-  print(xtable(corr))
+  # only include certain lags in table
+  corr_table = corr[list_lags,]
+  return(corr_table)
 }
-
-
 
 ## plotting function ----
 line_plot_multiple = function(title, outpath, x,xlab, ylab, names_y, y_percent, y_discrete, legend, y1, y2,y3,y4,y5,y6,y7,y8,y9,y10) {

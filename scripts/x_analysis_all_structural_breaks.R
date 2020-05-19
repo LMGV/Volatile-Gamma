@@ -29,8 +29,6 @@
   source("scripts/garchFunction.R") # functions
   outpathDescriptive = "output/univariateDescriptives/"
   outpathModels =  "output/univariateModels/"
-  
- garch_data_ts_r  = readRDS("output/univariateDescriptives/garch_data_ts_r.rds")
 
      
    # Tree GARCH (1,1) ----
@@ -133,11 +131,21 @@
          distribution_choices =c("normal","t")
 
         # input data
-         # estimate model for each series and timeframe given
-         number_timeframes = 1
-           returns_list=list(garch_data_ts_r$rub_errors, garch_data_ts_r$oil_errors) # garch_data_ts_r only contains 1 dataframe. if multiple, then get all series for all timeframes in return_list
+         # estimate model for each series before and after structural break
+            # version for 3 timeframes
+               returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors,
+                                 ts_r_struc_break$timeframe3$rub_errors, 
+                                 ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors,
+                                 ts_r_struc_break$timeframe3$oil_errors)
                
-           names(returns_list) = paste0(c(rep("rub_", number_timeframes),rep("oil_", number_timeframes)), rep(names(garch_data_ts_r),2))
+              
+
+          # version for 4 timeframes
+            # returns_list=list(ts_r_struc_break$timeframe1$rub_errors, ts_r_struc_break$timeframe2$rub_errors, 
+            #                   ts_r_struc_break$timeframe3$rub_errors, ts_r_struc_break$timeframe4$rub_errors,
+            #                   ts_r_struc_break$timeframe1$oil_errors, ts_r_struc_break$timeframe2$oil_errors, 
+            #                   ts_r_struc_break$timeframe3$oil_errors, ts_r_struc_break$timeframe4$oil_errors)
+          names(returns_list) = paste0(c(rep("rub_", length(ts_r_struc_break)),rep("oil_", length(ts_r_struc_break))), rep(names(ts_r_struc_break),2))
 
         # initialize selected model list for all univeriate series
           all_selected_model = vector("list", length = length(returns_list))
