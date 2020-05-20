@@ -1,3 +1,6 @@
+library(rugarch)
+library(rmgarch)
+
 ####Spec function####
 spec_function <- function(rolist){
   if (rolist[["model_specification"]][["threshhold_included"]] == TRUE ) {
@@ -76,14 +79,18 @@ dcc_function <- function(rub_list, oil_list){
   output <- list("fit"=fit1, "returns" = returns)
 }
 
-####Call Function####
-full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/univariate_garchs_full_sample.rds")
+####Import Univariate GARCH Models####
 full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/univ_oil_rub_tree_models_combined_for_dcc.rds")
 
 
-rub_list <- full_sample[["rub"]]
-  oil_list <- full_sample[["oil"]]
-  
-output <- dcc_function(full_sample[["rub"]],full_sample[["oil"]])
-returns <- output$returns
-dccfit <- output$fit
+####Call DCC Funcitons####
+#Sample 1#  
+output1 <- dcc_function(full_sample[["rub_subsample1"]],full_sample[["oil_subsample1"]])
+returns1 <- output1$returns
+dccfit1 <- output1$fit
+
+#Sample 2#
+output2 <- dcc_function(full_sample[["rub_subsample2"]],full_sample[["oil_subsample2"]])
+returns2 <- output2$returns
+dccfit2 <- output2$fit
+
