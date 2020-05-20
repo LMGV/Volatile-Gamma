@@ -77,4 +77,5 @@ colnames(data.tet) <- c("date", "DGS10")
 data1 <- left_join(data1, data.tet, by="date")
 
 # save the data
+# this data file is rewritten by output of AutoARIMA.R (ARIMA errors are added)
 write.table(data1, "data/data_outliers_1_with_values.csv", sep=",")
