@@ -73,7 +73,7 @@ dcc_function <- function(rub_list, oil_list){
   
   spec1 <- dccspec(uspec = uspec.n, dccOrder = c(1,1), distribution = "mvt")#, 'mvt'fixed.pars = "fixed.se")#fixed.pars = as.list(coef(sgarch.fit)))
   fit1 <- dccfit(spec1, data = returns, solver = "nlminb", fit = multf, fit.control = list(scale =TRUE)) #solver =c("solnp", "nlminb", "lbfgs", "gosolnp"))
-  fit1
+  output <- list("fit"=fit1, "returns" = returns)
 }
 
 ####Call Function####
@@ -81,5 +81,6 @@ full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/un
   rub_list <- full_sample[["rub"]]
   oil_list <- full_sample[["oil"]]
   
-fitdcc <- dcc_function(full_sample[["rub"]],full_sample[["oil"]])
-fitdcc
+output <- dcc_function(full_sample[["rub"]],full_sample[["oil"]])
+returns <- output$returns
+dccfit <- output$fit
