@@ -2,9 +2,10 @@ library(forecast)
 library(tseries)
 setwd("C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data")
 
-data <- read.table("data.csv", sep = ",")
+data <- read.table("data_outliers_1_with_values.csv", sep = ",")
+#data1 <- read.table("data.csv", sep = ",")
 
-#### ACF and PACF ####
+#### ACF and PACF ----
 acf(data$oil, lag.max = 30, plot = TRUE)
 acf(data$rub, lag.max = 30, plot = TRUE)
 
@@ -12,7 +13,7 @@ data2 <- data^2
 acf(data2$oil, lag.max = 30, plot = TRUE)
 acf(data2$rub, lag.max = 30, plot = TRUE)
 
-#### Ljung-Box test ####
+#### Ljung-Box test ----
 #acf(data2$oil, lag.max = 30, plot = TRUE)$acf[2]
 
 #length(data2$oil)*(length(data2$oil)+2)*(acf(data2$oil, lag.max = 30, plot = TRUE)$acf[2]^2/(length(data2$oil))-1)
@@ -21,17 +22,47 @@ acf(data2$rub, lag.max = 30, plot = TRUE)
 Box.test(data$oil, lag = 2, type = "Ljung-Box")
 Box.test(data$rub, lag = 2, type = "Ljung-Box")
 
-#### Dickey-Fuller test ####
+#### Dickey-Fuller test ----
 
 # H0: unit root
 
-oil.t   <- data$oil[-1]
-oil.t_1 <- data$oil[-length(data$oil)]
-x.oil   <- matrix(c(rep(1, length(oil.t_1)), oil.t_1), nrow = length(oil.t_1), ncol = 2) # matrix of a constant and lagged dep var
-
-rub.t   <- data$rub[-1]
-rub.t_1 <- data$rub[-length(data$rub)]
-x.rub   <- matrix(c(rep(1, length(rub.t_1)), rub.t_1), nrow = length(rub.t_1), ncol = 2) # matrix of a constant and lagged dep var
+# this function creates variables for the DF test and ARIMA fit
+create.var <- function(data){
+  
+  data <- na.omit(data)
+  y.t <- data[-1]
+  y.t_1 <- data[-length(data)]
+  x <- matrix(c(rep(1, length(y.t_1)), y.t_1), nrow = length(y.t_1), ncol = 2) # matrix of a constant and lagged dep var
+  
+  varlist <- list("y" = y.t, "x" = x)
+  return(varlist)
+  
+}
+  
+  # assigning all the variables 
+  oil.t   <- create.var(data$oil)$y
+  x.oil   <- create.var(data$oil)$x
+  
+  rub.t   <- create.var(data$rub)$y
+  x.rub   <- create.var(data$rub)$x
+  
+  for (i in colnames(data)[c(7, 9, 11)]){
+    a <- create.var(data[[i]])$y
+    b <- create.var(data[[i]])$x
+    
+    assign(paste(i, ".t", sep = ""), a)
+    assign(paste("x.", i, sep = ""), b)
+  }
+  
+  yc <- c("quarter", "one", "two", "three", "five", "seven", "ten", "fifteen", "twenty", "thirty")
+  
+    for (i in seq(12, 21)){
+      a <- create.var(data[[colnames(data)[i]]])$y
+      b <- create.var(data[[colnames(data)[i]]])$x
+      
+      assign(paste("yc.",   yc[i-11], ".t", sep = ""), a)
+      assign(paste("x.yc.", yc[i-11],       sep = ""), b)
+    }
 
 # this function performs a DF test with a constant; returns 1 if differencing is required and 0 otherwise
 df.test <- function(y, X, cl){ # cl can be one of 0.01, 0.025, 0.05, 0.1
@@ -56,8 +87,17 @@ df.test <- function(y, X, cl){ # cl can be one of 0.01, 0.025, 0.05, 0.1
 d.oil <- df.test(oil.t, x.oil, 0.05)
 d.rub <- df.test(rub.t, x.rub, 0.05)
 
+for (i in colnames(data)[c(7, 9, 11)]){
+  assign(paste("d.", i, sep = ""), df.test(eval(parse(text = paste(i, ".t", sep = ""))), 
+                                           eval(parse(text = paste("x.", i, sep = ""))), 0.05))
+}
 
-#### ARIMA model fit ####
+for (i in seq(12, 21)){
+  assign(paste("d.yc.", yc[i-11], sep = ""), df.test(eval(parse(text = paste("yc.", yc[i-11], ".t", sep = ""))),
+                                                     eval(parse(text = paste("x.yc.", yc[i-11], sep = ""))), 0.05))
+}
+
+#### ARIMA functions definitions ----
 
 # this function computes sum of squared errors of a given ARMA model
 arma.errors <- function(parameters, y, p, q){ # parameters should be passed as a vector of c, AR, MA, sigma^2
@@ -173,7 +213,8 @@ log.lik <- function(parameters, y, p, q) {
   return(-1 * ll)
 }
 
-# this function fits an ARIMA model and returns estimated coefficients, value of LL function and value of BIC
+# this function fits an ARIMA model and returns estimated coefficients, value of LL function, value of BIC, order of AR part, 
+# order of MA part, order of differencing, vector of ARMA errors and a table of obtained BIC values of all models tried
 fit.ARIMA <- function(y, p, d, q){ # data vector, AR order, differencing, MA order
   if (d == 1){
     y = diff(y)
@@ -191,13 +232,16 @@ fit.ARIMA <- function(y, p, d, q){ # data vector, AR order, differencing, MA ord
 
 # this function returns the best ARIMA model according to the BIC criterion
 best.ARIMA <- function(y, p_grid, d, q_grid){
-  model.bic    <- 0
+  model.bic  <- 10**10
+  bic.values <- rep(0, (length(p_grid) + length(q_grid)))
+  c <- 1
   
   for (pv in p_grid){
     for (qv in q_grid){
       print(paste("Trying model:", pv, d, qv))
       model <- fit.ARIMA(y, pv, d, qv)
       print(paste("BIC:", model$BIC))
+      bic.values[c] <- model$BIC
       if (model$BIC < model.bic){
         model.bic    <- model$BIC
         model.coeffs <- model$Coefficients
@@ -206,26 +250,58 @@ best.ARIMA <- function(y, p_grid, d, q_grid){
         model.q      <- qv
         model.errors <- arma.errors(model.coeffs, y, pv, qv)$errorslist
       }
+      c <- c + 1
     }
   }
   
+  bic.values.m <- matrix(bic.values, ncol = length(p_grid), nrow = length(q_grid))
+  
   best.model <- list("Coefficients" = model.coeffs, "LogLikelihoodvalue" = model.loglik, "BIC" = model.bic, "p" = model.p, 
-                     "q" = model.q, "d" = d, "errors" = model.errors)
+                     "q" = model.q, "d" = d, "errors" = model.errors, "bictried" = bic.values.m)
   return(best.model)
 }
 
-model.oil <- best.ARIMA(oil.t, c(0, 1), d.oil, c(0, 1))
-model.rub <- best.ARIMA(rub.t, c(0, 1), d.rub, c(0, 1))
+#### ARIMA model fit ----
+
+model.oil <- best.ARIMA(oil.t, c(0, 1, 2), d.oil, c(0, 1, 2))
+model.rub <- best.ARIMA(rub.t, c(0, 1, 2), d.rub, c(0, 1, 2))
+
+# this loop fits ARIMA models for MOEX, SPX and RUBEUR
+for (i in colnames(data)[c(7, 9, 11)]){
+  y  <- eval(parse(text = paste(i, ".t", sep = "")))
+  d  <- eval(parse(text = paste("d.", i, sep = "")))
+  ba <- best.ARIMA(y, c(0, 1, 2), d, c(0, 1, 2))
+  
+  assign(paste("model.", i, sep = ""), ba)
+}
+
+
+# this loop fits ARIMA models for diferrent yc times
+#for (i in seq(12, 13)){
+#  y  <- eval(parse(text = paste("yc.", yc[i-11], ".t", sep = "")))
+#  d  <- eval(parse(text = paste("d.yc.", yc[i-11], sep = "")))
+#  ba <- best.ARIMA(y, c(0, 1, 2), d, c(0, 1, 2))
+  
+#  assign(paste("model.", yc[i-11], sep = ""), ba)
+#}
+
+#model.yc.one <- best.ARIMA(yc.one.t, c(0, 1, 2), d.yc.one, c(0, 1, 2))
 
 data.e <- data
-data.e["oil_errors"] <- c(0, model.oil$errors)
-data.e["rub_errors"] <- c(0, model.rub$errors)
+data.e$date <- data$date
 
-write.table(data.e, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_e.csv", row.names = TRUE, 
+data$rub_errors <- c(0, model.rub$errors)
+data$oil_errors <- c(0, model.oil$errors)
+data$RUBEUR_errors <- c(0, model.RUBEUR$errors)
+
+#data.e["oil_errors"] <- c(0, model.oil$errors)
+#data.e["rub_errors"] <- c(0, model.rub$errors)
+
+write.table(data, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_outliers_1_with_values.csv", 
             sep=",")
 
-
-
+acf(model.oil$errors)
+acf(model.rub$errors)
 
 
 
