@@ -34,60 +34,162 @@
  garch_data_ts_r  = readRDS("output/univariateDescriptives/garch_data_ts_r.rds") # selected garch data after struc break analysis
  garch_data_ts_r_errors = garch_data_ts_r[,c("rub_errors", "oil_errors")]
      
+ # DEFINE split_variables
+  # only lags etc that are included
+ # garch_data_ts_r should contain all vars
+ # garch_data_ts_r_errors only returns itself
+
+# forecasting ----
+
  
-   
-       
-       
-       
-       
-     # forecasting
-       # get model specification and parms:
-       model_coefs= all_selected_model_tree$rub_subsample1$garch_coefs
-       model_specif= all_selected_model_tree$rub_subsample1$model_specification
-       returns_test = all_selected_model_tree$rub_subsample1$return_data[1:10]
-       
-       
-       sigmasq = rep(var(returns_test),10)[1:max_lags_model] 
-     # input: for each day one return vector + list model coefs + list model spec  
-     # output: scalar variance forecast
-       
-       mu_coef = model_coefs[1]
-       constant_coef = model_coefs[2]
-       ma_coef = model_coefs[(1:model_specif$number_ma)+2]
-       ar_coef = model_coefs[((model_specif$number_ma+1):(model_specif$number_ma+model_specif$number_ar))+2]
-       th_coef = ifelse(model_specif$threshhold_included==T, model_coefs[(model_specif$number_ar+model_specif$number_ma+1)+2],0) #set threshhold to zero no TGARCH
-        th_value = model_specif$th_value
+ 
+ 
+ # get data 
+ 
+ treeGarchResultLoop = treeGarchResult
+ split_variablesLoop = split_variables
+ returnsLoop = garch_data_ts_r_errors
+ 
+ split_information =  treeGarchResultLoop$split_order_pruned 
+ 
+ subsample_tree_loop = collectSubsamplesTree(returns, split_variables, split_information)
+
+ 
+ # load model data: 
+  # static models
+   all_selected_model  = readRDS("output/univariateModels/univariate_garchs_full_sample.rds")
+   all_selected_model_tree  = readRDS("output/univariateModels/univariate_garchs_tree_rub.rds")
+ 
+  # in sample 1d-head forecasting for RUB
+    max_lag_prediction = 3
+    start_date_predictions = "2008-01-10"
+    end_date_predictions = "2019-12-31"
+    analysis_variable = c("rub_errors", "oil_errors")
+ 
+    
+    # tree GARCH
+    # assign models to observations
+    predict_data = data.frame(date=index(garch_data_ts_r), coredata(garch_data_ts_r)) %>%
+      mutate(analysis_variable = NA)
+    
+
+    
+    in_sample_pred_result = list()
+    
+    model_list_choices = list(all_selected_model_tree, all_selected_model)
+    analysis_variable_choices = c("rub_errors", "oil_errors") # oil errors do not exist for tree so far
+
+  # 1) RUBUSE
+    # TREE MARCH model
+      # define inputs for function
+        model_list = model_list_choices[1]
+        analysis_variable = analysis_variable_choices[1]
+        predict_data[,colnames(predict_data) == "analysis_variable"] = predict_data[,colnames(predict_data) == analysis_variable]
+        
+      # predict variance
+        in_sample_pred_result[[1]] = in_sample_forecast(model_list=all_selected_model , predict_data, start_date_predictions, end_date_predictions,max_lag_prediction)
       
+    # FULL Sample GARCH model
+      # define inputs for function
+        model_list = model_list_choices[2]
+        analysis_variable = analysis_variable_choices[1]
+        predict_data[,colnames(predict_data) == "analysis_variable"] = predict_data[,colnames(predict_data) == analysis_variable]
+        
+      # predict variance
+       in_sample_pred_result[[2]] = in_sample_forecast(model_list=all_selected_model , predict_data, start_date_predictions, end_date_predictions,max_lag_prediction)
+      
+   # 2) OIL 
+       # FULL Sample GARCH model
+       # define inputs for function
+       model_list = model_list_choices[2]
+       analysis_variable = analysis_variable_choices[2]
+       predict_data[,colnames(predict_data) == "analysis_variable"] = predict_data[,colnames(predict_data) == analysis_variable]
        
-     # input data frame
-       max_lags_model = 3 # parameter that determines how many datapoints are loaded to forecast function
+       # predict variance
+       in_sample_pred_result[[3]] = in_sample_forecast(model_list=all_selected_model , predict_data, start_date_predictions, end_date_predictions,max_lag_prediction)
+       
        
    
+   # set names for series and save
+       names(in_sample_pred_result) = c("rub_tree","rub","oil")
+       saveRDS(in_sample_pred_result, file = paste0(outpathModels,"in_sample_pred_result.rds"))
        
-      
+       ggplot(in_sample_pred_result$rub_tree, aes(x = date, y = variance_proxy)) +
+         geom_line(aes(y = variance_predict), color = "red")+
+         geom_line(aes(y = variance_predict), color = "red")
+       
+       
+     # brief check of results
+         for (i in 1:length(in_sample_pred_result)){
+           print(summary(in_sample_pred_result[[i]]$variance_predict))
+           print(summary(in_sample_pred_result[[i]]$residuals_garch))
+         }
        
 
-       # Note: timeindex: max_lags_model is t, (max_lags_model-1) is t-1 ...
-       returns = returns_test[1:max_lags_model]
+    
+    
+   in_sample_forecast =  function(model_list, predict_data, start_date_predictions, end_date_predictions,max_lag_prediction) {
+     predict_data_with_model = NULL
+     model_list = list()
+     for (subsample_iter in 1:length(all_selected_model_tree)){
+       model_list[[subsample_iter]] = filter(predict_data, date %in% all_selected_model_tree[[subsample_iter]]$returns_with_date$date) %>%
+         mutate(model = subsample_iter) #model number is number in original list
        
-     # demeaned square return as variance proxy  
-       epsilon  = returns -mu_coef$mu 
-       epsilon_sq = epsilon^2
+       predict_data_with_model = bind_rows(predict_data_with_model, model_list[[subsample_iter]]) # combine to one dataset again
+     }
+     
+     # add volatility proxy - daily squared deviation
+     predict_data_with_model= mutate(predict_data_with_model, variance_proxy = (analysis_variable-mean(rub,na.rm=T))^2,
+                                     variance_predict = NA)
+     
+     # cut timeframe
+     predict_data_with_model = filter(predict_data_with_model, date >=start_date_predictions & date <= end_date_predictions)
+     
+     # predict volatility for each observation 
+     for (i in (1+max_lag_prediction):nrow(predict_data_with_model)){
+       predict_data_with_model$variance_predict[i] = oneDayPredict(predict_data_with_model$analysis_variable[(i-max_lag_prediction):i], 
+                                                                   predict_data_with_model$variance_proxy[(i-max_lag_prediction):i],
+                                                                   all_selected_model_tree[[predict_data_with_model$model[i]]])
+     }
+     
+     predict_data_with_model = predict_data_with_model[(max_lag_prediction+1):nrow(predict_data_with_model),] # remove missing obs due to lags
+     predict_data_with_model$residuals_garch = predict_data_with_model$variance_predict- predict_data_with_model$variance_proxy
+     results = select(predict_data_with_model, date, variance_proxy, variance_predict, residuals_garch)
+     return(results)
+     
+    }
+    
+
        
-     # calc ma/ar/th parts of variance forecast
-       ma_part = 0
-         for (k in 1:length(ma_coef)) {
-           ma_part = ma_part + ma_coef[k]*epsilon_sq[length(epsilon)+1-k]
-         }
-       ar_part = 0
-         for (j in 1:length(ar_coef)) {
-           ar_part = ar_part + ar_coef[j]*sigmasq[length(epsilon)+1-j]  # calc AR part
-         }
-       threshhold_part = th_coef*epsilon_sq[max_lags_model]* as.numeric(epsilon_sq[length(epsilon)]<=th_value)
+        
+
+ 
+  # assign model specification to observation (tree garch)
+
+
        
-     # variance estimation
-       var_estim = as.numeric(constant_coef$omega + ar_part+ ma_part +threshhold_part)
-       var_estim
+   
+     
+   # out of sample forecasting
+   # estimate model each quarter
+   estimation_timeframe = 1 # length estimation time in years
+   grid_estimation_time = seq(min(time(garch_data_ts_r_errors)) + years(estimation_timeframe), max(time(garch_data_ts_r_errors)), by = "quarter")
+   
+   # estimate model each quarter
+   for (quarter in grid_estimation_time){
+     
+   }
+   
+
+       
+       
+       
+       
+       
+       
+       
+       
+       
        
        
        
@@ -106,8 +208,11 @@
          # estimate model for each series and timeframe given
            number_timeframes = 1
            returns_list=list(garch_data_ts_r_errors$rub_errors, garch_data_ts_r_errors$oil_errors) # garch_data_ts_r only contains 1 dataframe. if multiple, then get all series for all timeframes in return_list
-               
+           returns_list_with_date = list(data.frame(date=index(garch_data_ts_r_errors), coredata(garch_data_ts_r_errors[,c("rub_errors")])),
+                       data.frame(date=index(garch_data_ts_r_errors), coredata(garch_data_ts_r_errors[,c("oil_errors")]))) # save as data frame
+           
            names(returns_list) = c("rub_all","oil_all") #!! rename if multiple timeframes are estimated
+           names(returns_list_with_date) = c("rub_all","oil_all")
 
         # initialize selected model list for all univeriate series
           all_selected_model = vector("list", length = length(returns_list))
@@ -116,7 +221,7 @@
         # estimate model for all univariate inputs
           for(data_iter in 1:length(returns_list)) {
             returns = returns_list[[data_iter]]
-            
+            returns_with_date = returns_list_with_date[[data_iter]]
             # inialize result list for one univariate series
             garch_model_selection = list()
           
@@ -185,8 +290,8 @@
                             names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
                         
                        # add model to model selection list
-                        garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification, model_evaluation)
-                        names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation")
+                        garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification, model_evaluation,returns_with_date)
+                        names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","returns_with_date")
                         garch_model_selection[[length(garch_model_selection)+1]] = garch_model 
                     
                   }
@@ -300,16 +405,19 @@
         # 3) get subsamples tree
         subsamples_tree  = collectSubsamplesTree(returns, split_variables, treeGarchResult$split_order_pruned)
         
-        # 4) optimal GARCH for every terminal leaf (here only for RUBUSD)
+        # 4) Estimate and save GARCH for every terminal leaf (here only for RUBUSD)
         # input data
         # estimate model for each series and timeframe given
         number_timeframes = 1
         returns_list = list()
+        returns_list_with_date = list()
         for (i in 1:length(subsamples_tree)) {
           returns_list[[i]]=subsamples_tree[[i]]$return # garch_data_ts_r only contains 1 dataframe. if multiple, then get all series for all timeframes in return_list
-        }
+          returns_list_with_date[[i]]=subsamples_tree[[i]]
+         }
         
         names(returns_list) = paste0("rub_subsample", seq(1:length(returns_list))) #!! rename if multiple timeframes are estimated
+        names(returns_list_with_date) = paste0("rub_subsample", seq(1:length(returns_list_with_date)))
         
         # initialize selected model list for all submodels
         all_selected_model_tree = vector("list", length = length(returns_list))
@@ -318,6 +426,7 @@
         # estimate model for all univariate inputs
         for(data_iter in 1:length(returns_list)) {
           returns = returns_list[[data_iter]]
+          returns_with_date = returns_list_with_date[[data_iter]]
           
           
           # estimate GARCH model for given specification_tree (minimize negative loglikelihood)
@@ -357,25 +466,72 @@
           names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
           
           # add model to model selection list
-          garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification_tree, model_evaluation, treeGarchResult$split_order_pruned)
-          names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","treeGarchResult")
+          garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification_tree, model_evaluation, returns_with_date,treeGarchResult$split_order_pruned)
+          names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","returns_with_date","treeGarchResult")
           all_selected_model_tree[[data_iter]] = garch_model 
         }
         # save only tree
         saveRDS(all_selected_model_tree, file = paste0(outpathModels,"univariate_garchs_tree_rub.rds"))
-        # add optimal 
         
         # investigate results
-        for(i in 1:length(all_selected_model)) {
-          print(all_selected_model[[i]]$series_name)
-          print(all_selected_model[[i]]$model_specification)
-          print(all_selected_model[[i]]$garch_coefs)
-          print(all_selected_model[[i]]$model_evaluation)
+        for(i in 1:length(all_selected_model_tree)) {
+          print(all_selected_model_tree[[i]]$series_name)
+          print(all_selected_model_tree[[i]]$model_specification)
+          print(all_selected_model_tree[[i]]$garch_coefs)
+          print(all_selected_model_tree[[i]]$model_evaluation)
         }
         
         
+      # OPTIONAL Model Saving for convinience: add simple model of other series split in same subsamples and save ----
+        # ! only do if estimated on same time basis
+        # ! need to adjust to number of splits done
         
-# REMOVE LATER ----
+        # tree and non-tree model - for one series
+          # create list
+          univ_rub_models_compare = list()
+          univ_rub_models_compare$rub_m1_subsample1 = all_selected_model_tree$rub_subsample1
+          univ_rub_models_compare$rub_m1_subsample2= all_selected_model_tree$rub_subsample2
+          univ_rub_models_compare$rub_m2_subsample1 = all_selected_model$rub_all
+          univ_rub_models_compare$rub_m2_subsample2 = all_selected_model$rub_all
+          
+          # change sample for non-tree model to tree subsamples
+          univ_rub_models_compare$rub_m2_subsample1$return_data = univ_rub_models_compare$rub_m1_subsample1$return_data
+          univ_rub_models_compare$rub_m2_subsample1$return_data_with_date = univ_rub_models_compare$rub_m1_subsample1$return_with_date 
+          univ_rub_models_compare$rub_m2_subsample2$return_data = univ_rub_models_compare$rub_m1_subsample2$return_data
+          univ_rub_models_compare$rub_m2_subsample2$return_data_with_date = univ_rub_models_compare$rub_m1_subsample2$return_with_date 
+          
+          # save list
+          saveRDS(univ_rub_models_compare, file = paste0(outpathModels,"univ_rub_models_for_comparision.rds"))
+          
+        # tree and non-tree model - for different series
+            # first match dates to get return series
+            match_sample1 = select(inner_join(all_selected_model_tree$rub_subsample1$returns_with_date, all_selected_model$oil_all$returns_with_date, by="date"), return, date)
+            match_sample2 = select(inner_join(all_selected_model_tree$rub_subsample2$returns_with_date, all_selected_model$oil_all$returns_with_date, by="date"), return, date)
+            # match_sample3 = select(inner_join(all_selected_model_tree$rub_subsample3$returns_with_date, all_selected_model$oil_all$returns_with_date, by="date"), return, date)
+            # match_sample4 = select(inner_join(all_selected_model_tree$rub_subsample4$returns_with_date, all_selected_model$oil_all$returns_with_date, by="date"), return, date)
+
+            # create list
+              univ_oil_rub_models_combined = list()
+              univ_oil_rub_models_combined$rub_subsample1 = all_selected_model_tree$rub_subsample1
+              univ_oil_rub_models_combined$rub_subsample2= all_selected_model_tree$rub_subsample2
+              univ_oil_rub_models_combined$oil_subsample1 = all_selected_model$oil_all
+              univ_oil_rub_models_combined$oil_subsample2 = all_selected_model$oil_all
+
+            # change sample for non-tree model to tree subsamples
+              univ_oil_rub_models_combined$rub_subsample1$return_data = select(match_sample1, -date)
+              univ_oil_rub_models_combined$rub_subsample1$return_data_with_date = match_sample1
+              univ_oil_rub_models_combined$rub_subsample2$return_data = select(match_sample2, -date)
+              univ_oil_rub_models_combined$rub_subsample2$return_data_with_date = match_sample2
+              
+              univ_oil_rub_models_combined$oil_subsample1$return_data = select(match_sample1, -date)
+              univ_oil_rub_models_combined$oil_subsample1$return_data_with_date = match_sample1
+              univ_oil_rub_models_combined$oil_subsample2$return_data = select(match_sample2, -date)
+              univ_oil_rub_models_combined$oil_subsample2$return_data_with_date = match_sample2
+              
+              # save list
+              saveRDS(univ_oil_rub_models_combined, file = paste0(outpathModels,"univ_oil_rub_tree_models_combined_for_dcc.rds"))
+              
+# Garch packages REMOVE LATER ----
       
         
         acf(returns_list$rub_timeframe3$rub_errors^2)

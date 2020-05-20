@@ -1,5 +1,44 @@
 # basic functions
 
+# return volatility forecast for one day given model data. lag=1
+oneDayPredict = function(past_returns, past_variance,model_data){
+  # input: past max_lag obs of returns and variance, model data
+  
+  # get model specification and parms:
+  model_coefs= model_data$garch_coefs
+  model_specif= model_data$model_specification
+  
+  # input: for each day one return vector + list model coefs + list model spec  
+  # output: scalar variance forecast
+  
+  mu_coef = model_coefs[1]
+  constant_coef = model_coefs[2]
+  ma_coef = model_coefs[(1:model_specif$number_ma)+2]
+  ar_coef = model_coefs[((model_specif$number_ma+1):(model_specif$number_ma+model_specif$number_ar))+2]
+  th_coef = ifelse(model_specif$threshhold_included==T, model_coefs[(model_specif$number_ar+model_specif$number_ma+1)+2],0) #set threshhold to zero no TGARCH
+  th_value = model_specif$th_value
+  
+  # demeaned square return as variance proxy  
+  epsilon  = past_returns -mu_coef$mu 
+  epsilon_sq = epsilon^2
+  
+  # calc ma/ar/th parts of variance forecast
+  ma_part = 0
+  for (k in 1:length(ma_coef)) {
+    ma_part = ma_part + ma_coef[k]*epsilon_sq[length(epsilon)+1-k]
+  }
+  ar_part = 0
+  for (j in 1:length(ar_coef)) {
+    ar_part = ar_part + ar_coef[j]*past_variance[length(epsilon)+1-j]  # calc AR part
+  }
+  threshhold_part = th_coef*epsilon_sq[length(epsilon)]* as.numeric(epsilon_sq[length(epsilon)]<=th_value)
+  
+  # variance estimation
+  var_estim = as.numeric(constant_coef$omega + ar_part+ ma_part +threshhold_part)
+  return(var_estim)
+  
+}
+
 
 ## short helper functiions ----
 my_aic = function(log_likelihood, number_parms) {
