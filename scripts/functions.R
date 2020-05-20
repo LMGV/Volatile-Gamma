@@ -1,5 +1,37 @@
 # basic functions
 
+# in sample forecast given model, return data and dates
+in_sample_forecast =  function(models, predict_data, start_date_predictions, end_date_predictions,max_lag_prediction) {
+  predict_data_with_model = NULL
+  model_list = list()
+  for (subsample_iter in 1:length(models)){
+    model_list[[subsample_iter]] = filter(predict_data, date %in% models[[subsample_iter]]$returns_with_date$date) %>%
+      mutate(model = subsample_iter) #model number is number in original list
+    
+    predict_data_with_model = bind_rows(predict_data_with_model, model_list[[subsample_iter]]) # combine to one dataset again
+  }
+  
+  # add volatility proxy - daily squared deviation
+  predict_data_with_model= mutate(predict_data_with_model, variance_proxy = (analysis_variable-mean(rub,na.rm=T))^2,
+                                  variance_predict = NA)
+  
+  # cut timeframe
+  predict_data_with_model = filter(predict_data_with_model, date >=start_date_predictions & date <= end_date_predictions)
+  
+  # predict volatility for each observation 
+  for (i in (1+max_lag_prediction):nrow(predict_data_with_model)){
+    predict_data_with_model$variance_predict[i] = oneDayPredict(predict_data_with_model$analysis_variable[(i-max_lag_prediction):i], 
+                                                                predict_data_with_model$variance_proxy[(i-max_lag_prediction):i],
+                                                                models[[predict_data_with_model$model[i]]])
+  }
+  
+  predict_data_with_model = predict_data_with_model[(max_lag_prediction+1):nrow(predict_data_with_model),] # remove missing obs due to lags
+  predict_data_with_model$residuals_garch = predict_data_with_model$variance_predict- predict_data_with_model$variance_proxy
+  results = select(predict_data_with_model, date, variance_proxy, variance_predict, residuals_garch)
+  return(results)
+  
+}
+
 # return volatility forecast for one day given model data. lag=1
 oneDayPredict = function(past_returns, past_variance,model_data){
   # input: past max_lag obs of returns and variance, model data
@@ -15,8 +47,12 @@ oneDayPredict = function(past_returns, past_variance,model_data){
   constant_coef = model_coefs[2]
   ma_coef = model_coefs[(1:model_specif$number_ma)+2]
   ar_coef = model_coefs[((model_specif$number_ma+1):(model_specif$number_ma+model_specif$number_ar))+2]
-  th_coef = ifelse(model_specif$threshhold_included==T, model_coefs[(model_specif$number_ar+model_specif$number_ma+1)+2],0) #set threshhold to zero no TGARCH
-  th_value = model_specif$th_value
+  
+  #threshhold for TGARCH
+  if(model_specif$threshhold_included==T) {
+    th_coef =  model_coefs$eta11 
+    th_value = model_specif$th_value
+  }
   
   # demeaned square return as variance proxy  
   epsilon  = past_returns -mu_coef$mu 
@@ -31,13 +67,20 @@ oneDayPredict = function(past_returns, past_variance,model_data){
   for (j in 1:length(ar_coef)) {
     ar_part = ar_part + ar_coef[j]*past_variance[length(epsilon)+1-j]  # calc AR part
   }
-  threshhold_part = th_coef*epsilon_sq[length(epsilon)]* as.numeric(epsilon_sq[length(epsilon)]<=th_value)
   
+  # add treshhold parm if part of model
+  threshhold_part = 0
+  if(model_specif$threshhold_included ==T) {
+    threshhold_part = th_coef*epsilon_sq[length(epsilon)]* as.numeric(epsilon[length(epsilon)]<=th_value)
+  }
   # variance estimation
-  var_estim = as.numeric(constant_coef$omega + ar_part+ ma_part +threshhold_part)
+  var_estim = as.numeric(constant_coef$omega + ar_part+ ma_part+threshhold_part)
+  
   return(var_estim)
   
 }
+
+
 
 
 ## short helper functiions ----

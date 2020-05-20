@@ -25,8 +25,7 @@ Thomson Reuters for Exchange rates and Indices
 
 # Work distribution
 * Erik
-  * tree GARCH (univariate)
-  * write garchPredict fct
+  * out of sample 1 year forecast
   * minzer-z regressions for performance
   * GARCH model analysis: 
 	residual analysis
@@ -57,6 +56,8 @@ Thomson Reuters for Exchange rates and Indices
 
 # Work done / Cancelled
 * Erik
+  * tree GARCH (univariate)
+  * write garchPredict fct 
   * Write a GARCH function
   * Granger causality - postponed: Vector Autoregressive Process, need to test for sign parms. Need to check specifics
   * look for more data - done
