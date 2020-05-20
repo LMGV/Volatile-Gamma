@@ -223,7 +223,7 @@ ts_r = xts(ts_r, order.by = as.Date(rownames(ts_r)))
     
   # select timeframes for analysis: timeframe after struc_break1 
     garch_data_ts_r = all_garch_data_ts_r[[3]]
-    saveRDS(garch_data_ts_r, file = paste0(outpathDescriptive,"garch_data_ts_r.rds"))
+    saveRDS(garch_data_ts_r, file = paste0(outpathDescriptive,"garch_data_ts_r_cut_from_descriptives_without_covariates.rds"))
     
    print("Manually Select Timeframes with GARCH effects for analysis via LR-Test table (lm_test_squares_struc_breaks_p_values)")
    print("Selected Timeframe: 2008 until 2020, no strong structural breaks in this timeframe for both series (but indication)")
