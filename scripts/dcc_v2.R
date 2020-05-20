@@ -78,7 +78,10 @@ dcc_function <- function(rub_list, oil_list){
 
 ####Call Function####
 full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/univariate_garchs_full_sample.rds")
-  rub_list <- full_sample[["rub"]]
+full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/univ_oil_rub_tree_models_combined_for_dcc.rds")
+
+
+rub_list <- full_sample[["rub"]]
   oil_list <- full_sample[["oil"]]
   
 output <- dcc_function(full_sample[["rub"]],full_sample[["oil"]])
