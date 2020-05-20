@@ -19,8 +19,8 @@ real_cov <- function(returns){#only works for bivariate models
 
 
 MEA_MSE <- function(real_cov, estimates){
-  a=matrix(,4,4)  #MAE/MSE
-  b=matrix(,4,4)
+  a=matrix(4,4)  #MAE/MSE
+  b=matrix(4,4)
   
   for (i in 4:7)
   {
