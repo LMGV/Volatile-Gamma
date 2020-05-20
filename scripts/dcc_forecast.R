@@ -1,25 +1,36 @@
-dccforecast(dccfit, n.ahead = 1, n.roll = nrow(returns))
+library(fBasics)
 
 
-dccforecast <- function(dccfit, returns){
-  # get all the  D_ts from eric
-  D_t <-  matrix(data = 0, nrow = 2, ncol = 2) #Diagonal Matrix with the sigma_t_i
-  #get all the vts
-  vt <- inv(D_t) * (r_t - mu)# (r_t - mu) row vector
-  
-  #Constants 
+dcc_forecast <- function(dccfit, pred_results_1, pred_results_2){
+  D <- array(0,dim = c(length(pred_results_1),2,2))
+  for (i in 1:length(pred_results_1)) {
+    D[i,1,1] <- sqrt(pred_results_1[i])
+    D[i,2,2] <- sqrt(pred_results_2[i])
+  }
+  V <- array(0,dim = c(length(pred_results_1),2,2))
+  for (i in 1:length(pred_results_1)) {
+    V[i,,] <- inv(D[i,,])#%*%(returns[i,] - colMeans(returns))# add retruns tomorrow
+  }
+
   dcca1 <- dccfit@model[["pars"]][1,1]
   dccb1 <- dccfit@model[["pars"]][2,1]
-  R <- 1/nrow(returns) sum(v_t1 %*% t(v_ti))
-  #Changeing over t
-  Q_t <- rep(list(NA),nrow(returns)
-  for (i in 2:nrow(returns)) {
-  Q_t_1 <- dccfit@mfit[["Q"]][[i-1]] #get erics variance predictions in there
   
-  v_t <- inv(D_t[i-1]) * (r_t[i-1] - mu)# (r_t - mu) row vector
-  
-  
-  Q_t[[i]] <- R + dcca1(v_t %*% t(v_t) - R) + dccb1(Q_t_1 - R) 
+  VtV <- array(0,dim = c(length(pred_results_1),2,2))
+  for (i in 1:length(pred_results_1)) {
+    VtV[i,,] <- V[i,,] %*% t(V[i,,])
   }
+  
+  R <- sum(VtV)/length(pred_results_1)
+  
+  Q_t <- array(0,dim = c(length(pred_results_1),2,2))
+  for (i in 2:length(pred_results_1)) {
+    Q_t[i,,] <- R + dcca1*(VtV[i,,] - R) + dccb1*(Q_t[i-1,,] - R) #What is the initial Q_t
+  }
+  Q_t
 }
 
+pred_results <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/in_sample_pred_result.rds")
+pred_rub <- pred_results$rub$variance_predict
+pred_oil <- pred_results$oil$variance_predict
+
+estimates <- dcc_forecast(dccfit1,pred_rub,pred_oil)
