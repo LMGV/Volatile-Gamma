@@ -36,141 +36,137 @@
      
  
  # Tree GARCH (1,1) ----
-     # 1) define data inputs (here only for RUBUSD)
-           # define possible split variables
-            # past returns, epsilons, variances of own process and other processes
-               means = colMeans(garch_data_ts_r_errors)
-               epsilon = sweep(garch_data_ts_r_errors,2,means)
-               epsilon_sq = epsilon^2
-               colnames(epsilon) = paste0(colnames(garch_data_ts_r_errors),"_epsilon")
-               colnames(epsilon_sq) = paste0(colnames(garch_data_ts_r_errors),"_epsilon_sq")
-               
-               base_split_variables = as.xts(cbind(epsilon, epsilon_sq)) #dataset split variables
-             
-            # get 2 lags of each variable. In VAR tests, dependencies were not consistent above the 2nd lag. Are excluded to get parsimonious computationally feasible model
-               max_lags = 3 # ! keep at 1+lags used. number lags for loop such that for all  split vars the same dataset is used (NA in the first observations otherwise)
-               lag1 = lag(base_split_variables,1)
-               lag2 = lag(base_split_variables,2)
-               colnames(lag1) = paste0(colnames(base_split_variables),"_lag1")
-               colnames(lag2) = paste0(colnames(base_split_variables),"_lag2")
-               
-               split_variables = as.data.frame(cbind(lag1 , lag2)) # data frame instead of time series
-               split_variables$date = rownames(split_variables)
-    
-               vector_quantiles = seq(1, 7)*0.125 # quantiles as threshholds
-             
-             # list for splitting variables
-               list_split_variables = colnames(split_variables)[colnames(split_variables) !="date"] # cols as splitting variables
-               
-           # return series used
-             returns = as.data.frame(garch_data_ts_r_errors$rub_errors)
-             returns$date = rownames(returns)
-             colnames(returns) = c("return","date")
-             
-    # 2) define model specifications for tree - GARCH (1,1)
-             ma = 1
-             ar = 1
-             threshhold = F
-             th_value  = 0 # not optimized within fct
-             data_threshhold = 0 # not implemented 
-             distribution =c("t") # take normal. convergence issues with t in small subsamples of tree  
-             start_parms = c(0,0.1,  rep(0.1/ma,ma), rep(0.9/ar,ar)) # initialize parms. 
-             if(threshhold==T){
-               start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
-             }
-             if(distribution=="t"){
-               start_parms=  c(start_parms, 10) # keep df_t > 2 due to likelihood fct
-             }
-             number_parms_estimated = length(start_parms)
-             model_specification_tree = list(number_parms_estimated,ma,ar,threshhold, distribution,th_value, data_threshhold,start_parms)
-             names(model_specification_tree) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value","data_threshhold","start_parms")
-             
-             
-             
-     # 2) build tree
-       treeGarchResult =   buildAndPruneTree(returns, split_variables, list_split_variables, model_specification_tree, max_lags)  
+            returns = as.data.frame(garch_data_ts_r_errors$rub_errors)
+            returns$date = rownames(returns)
+            colnames(returns) = c("return","date")
 
-       
-     # 3) get subsamples tree
-       subsamples_tree  = collectSubsamplesTree(returns, split_variables, treeGarchResult$split_order_pruned)
-       
-     # 4) optimal GARCH for every terminal leaf (here only for RUBUSD)
-   
-       # input data
-       # estimate model for each series and timeframe given
-       number_timeframes = 1
-       returns_list = list()
-       for (i in 1:length(subsamples_tree)) {
-         returns_list[[i]]=subsamples_tree[[i]]$return # garch_data_ts_r only contains 1 dataframe. if multiple, then get all series for all timeframes in return_list
-       }
-   
-       names(returns_list) = paste0("rub_subsample", seq(1:length(returns_list))) #!! rename if multiple timeframes are estimated
-       
-       # initialize selected model list for all submodels
-       all_selected_model = vector("list", length = length(returns_list))
-       names(all_selected_model) = names(returns_list)
-       
-       # estimate model for all univariate inputs
-       for(data_iter in 1:length(returns_list)) {
-         returns = returns_list[[data_iter]]
+              # define possible split variables
+                # past returns, epsilons, variances of own process and other processes
+                   means = colMeans(garch_data_ts_r_errors)
+                   epsilon = sweep(garch_data_ts_r_errors,2,means)
+                   epsilon_sq = epsilon^2
+                   colnames(epsilon) = paste0(colnames(garch_data_ts_r_errors),"_epsilon")
+                   colnames(epsilon_sq) = paste0(colnames(garch_data_ts_r_errors),"_epsilon_sq")
+                   
+                   base_split_variables = as.xts(cbind(epsilon, epsilon_sq)) #dataset split variables
+                 
+                # get 2 lags of each variable. In VAR tests, dependencies were not consistent above the 2nd lag. Are excluded to get parsimonious computationally feasible model
+                   max_lags = 2 # number lags for loop such that for all  split vars the same dataset is used (NA in the first observations otherwise)
+                   lag1 = lag(base_split_variables,1)
+                   lag2 = lag(base_split_variables,2)
+                   colnames(lag1) = paste0(colnames(base_split_variables),"_lag1")
+                   colnames(lag2) = paste0(colnames(base_split_variables),"_lag2")
+                   
+                   split_variables = as.data.frame(cbind(lag1 , lag2)) # data frame instead of time series
+                   split_variables$date = rownames(split_variables)
 
-      
-         # estimate GARCH model for given specification_tree (minimize negative loglikelihood)
-         opt_parms= nlm(garchEstimation,model_specification_tree$start_parms,
-                        returns = returns,  ma = model_specification_tree$number_ma, ar = model_specification_tree$number_ar, 
-                        threshhold = model_specification_tree$threshhold_included, th_value = model_specification_tree$th_value, data_threshhold = model_specification_tree$data_threshhold,
-                        distribution=model_specification_tree$distribution,
-                        print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
+                   vector_quantiles = seq(1, 7)*0.125 # quantiles as threshholds
                  
-                 # get model parameters
-                 # get same names as in DCC function
-                 names_parms =  c("mu", "omega", paste0("alpha",seq(1:ma)), paste0("beta",seq(1:ar)))
-                 if(model_specification_tree$threshhold==T){
-                   names_parms=  c(names_parms, "eta11") # set asymmetry parameter to 0 
-                 }
-                 if(model_specification_tree$distribution=="t"){
-                   names_parms=  c(names_parms, "shape") # keep df_t > 2 due to likelihood fct
-                 }
+                 # list for splitting variables
+                   list_split_variables = colnames(split_variables)[colnames(split_variables) !="date"] # cols as splitting variables
                  
-                 garch_coefs = as.data.frame(t(c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))
-                 colnames(garch_coefs) = names_parms
-                 
-                 # model evaluation
-                 # stationarity
-                 sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
-                 if(model_specification_tree$threshhold==T){
-                   sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$eta11 # adjust if threshhold is active
-                 }
-                 
-                 # model selection
-                 loglik_model =-opt_parms$minimum
-                 aic_model = my_aic(loglik_model, model_specification_tree$number_parms_estimated)
-                 bic_model = my_bic(loglik_model, model_specification_tree$number_parms_estimated, length(returns))
-                 
-                 # save model evaluation in list  
-                 model_evaluation = list(sum_coefs,loglik_model, aic_model, bic_model)
-                 names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
-                 
-                 # add model to model selection list
-                 garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification_tree, model_evaluation, treeGarchResult$split_order_pruned)
-                 names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","treeGarchResult")
-                 all_selected_model[[data_iter]] = garch_model 
-       }
+             # dataframes to collect subsamples and split information
+                   
+               leaf_history = list() # leaf history contains for each split level: the sample, the "selected_split", the history
+                   
+               history_names = c("parent","own") # each leaf gets a history vector with parent number and a own number for clear assignment
+               
+               active_leafs = list() # collect active samples which can be used to split
 
-       saveRDS(all_selected_model, file = paste0(outpathModels,"univariate_garchs_tree.rds"))
-       
-       # investigate results
-       for(i in 1:length(all_selected_model)) {
-         print(all_selected_model[[i]]$series_name)
-         print(all_selected_model[[i]]$model_specification)
-         print(all_selected_model[[i]]$garch_coefs)
-         print(all_selected_model[[i]]$model_evaluation)
-       }
-       
-       
-     
+               history_start = c(0,0) # starting sample gets itself as parent. Stop 
+               leaf_history[[1]] = list(returns, NULL, history_start)
+               
+               names_sample = c("sample","parent_split")
+               
+               # first split
+                  # run split function for both nodes and choose best split according to likelihood improvement 
+                   split_1 = find_split(returns, split_variables, list_split_variables, max_lags)
+                  # execute split (since only one choosen split)
+                    data_sample1 = list(split_1$subsample_lower, split_1)
+                    data_sample2 = list(split_1$subsample_higher,split_1)
+                    names(data_sample1) = names_sample
+                    names(data_sample2) = names_sample
+                    active_leafs = list(data_sample1, data_sample2) # overwrite in first split
+                  
+                  # leaf_history[[2]] = list(split_1$subsample_lower, split_1$selected_split, c(0,1))
+                  # leaf_history[[3]] = list(split_1$subsample_higher, split_1$selected_split, c(0,2))
+                   
+                # second split
+                  # run split function for both nodes and choose best split according to likelihood improvement
+                  split_2_1 = find_split(active_leafs[[1]]$sample, split_variables, list_split_variables, max_lags)
+                  split_2_2 =  find_split(active_leafs[[2]]$sample, split_variables, list_split_variables, max_lags)
+                  
+                  # split if best likelihood improvement and update active leafs
+                    if(split_2_1$selected_split$improvementLogLik >= split_2_2$selected_split$improvementLogLik) {
+                      split_2 = split_2_1
+                      
+                      data_sample3 = list(split_2$subsample_lower, split_2)
+                      data_sample4 = list(split_2$subsample_higher,split_2)
+                      data_sample5 = list(split_1$subsample_higher,split_1)
+                      names(data_sample1) = names_sample
+                      names(data_sample2) = names_sample
+                      
+                      active_leafs[[1]] = active_leafs[[2]] 
+                      # leaf_history[[4]] = list(split_2$subsample_lower, split_2$selected_split, c(1,3))
+                      # leaf_history[[5]] = list(split_2$subsample_higher, split_2$selected_split, c(1,4))
+                      # leaf_history[[6]] = list(split_1$subsample_higher, split_1$selected_split, c(0,2))
+                      
+                    } else {
+                      split_2 = split_2_2
+                      active_leafs[[1]] = active_leafs[[1]] 
+                      # leaf_history[[4]] = list(split_2$subsample_lower, split_2$selected_split, c(2,3))
+                      # leaf_history[[5]] = list(split_2$subsample_higher, split_2$selected_split, c(2,4))
+                      # leaf_history[[6]] = list(split_1$subsample_lower, split_1$selected_split, c(0,1))
+                    }
+                  
+                  # execute split
+                    active_leafs[[2]] =  split_2$subsample_lower
+                    active_leafs[[3]] =  split_2$subsample_higher
+
+                # third split
+                  # run split function for all nodes and choose best split according to likelihood improvement
+                  split_3_1 = find_split(active_leafs[[1]], split_variables, list_split_variables, max_lags)
+                  split_3_2 = find_split(active_leafs[[2]], split_variables, list_split_variables, max_lags)
+                  split_3_3 = find_split(active_leafs[[3]], split_variables, list_split_variables, max_lags)
+                  
+                  # split if best likelihood improvement and update active leafs
+                    if((split_3_1$selected_split$improvementLogLik >= split_3_2$selected_split$improvementLogLik) & (split_3_1$selected_split$improvementLogLik >= split_3_3$selected_split$improvementLogLik)) {
+                      split_3 = split_3_1
+                      active_leafs[[1]] = active_leafs[[2]]
+                      active_leafs[[2]] = active_leafs[[3]]
+                      
+                      leaf_history[[7]] = list(split_2$subsample_lower, split_2$selected_split, c(1,3))
+                      leaf_history[[8]] = list(split_2$subsample_higher, split_2$selected_split, c(1,4))
+                      leaf_history[[9]] = list(split_1$subsample_lower, split_1$selected_split, c(3,1))
+                      leaf_history[[10]] = list(split_1$subsample_lower, split_1$selected_split, c(4,1))
+                      
+                    } else if ((split_3_2$selected_split$improvementLogLik > split_3_1$selected_split$improvementLogLik) & (split_3_2$selected_split$improvementLogLik >= split_3_3$selected_split$improvementLogLik)){
+                      split_3 = split_3_2
+                      active_leafs[[1]] = active_leafs[[1]]
+                      active_leafs[[2]] = active_leafs[[3]]
+                    } else {
+                      split_3 = split_3_3
+                      active_leafs[[1]] = active_leafs[[1]]
+                      active_leafs[[2]] = active_leafs[[2]]
+                    }
+                  # execute split
+                  active_leafs[[3]] =  split_3$subsample_lower
+                  active_leafs[[4]] =  split_3$subsample_higher
+                  
+                  # save split history
+                  split_history= list(split_1, split_2, split_3)
+                  names(split_history) = c("split_1", "split_2", "split_3")
+                  
              
-             
+                print(split_history$split_1$selected_split)
+                print(split_history$split_2$selected_split)
+                print(split_history$split_3$selected_split)
+                  
+
+                 
+              # step 3) prune: choose subtree that minimized sum AIC
+                 
+            
 
                
       # Optimal fullsample GARCH model ----
@@ -225,23 +221,23 @@
                         
                         # get list for input specification
                           number_parms_estimated = length(start_parms)
-                          model_specification = list(number_parms_estimated,ma,ar,threshhold, distribution,th_value, data_threshhold,start_parms)
-                          names(model_specification) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value","data_threshhold","start_parms")
+                          model_specification = list(number_parms_estimated,ma,ar,threshhold, distribution,th_value)
+                          names(model_specification) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value")
                           
                         # estimate GARCH model for given specification (minimize negative loglikelihood)
-                          opt_parms= nlm(garchEstimation,model_specification$start_parms,
+                          opt_parms= nlm(garchEstimation,start_parms,
                                          returns = returns,  ma = model_specification$number_ma, ar = model_specification$number_ar, 
-                                         threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = model_specification$data_threshhold,
+                                         threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = data_threshhold,
                                          distribution=model_specification$distribution,
                                          print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
                         
                         # get model parameters
                           # get same sames as in DCC function
                           names_parms =  c("mu", "omega", paste0("alpha",seq(1:ma)), paste0("beta",seq(1:ar)))
-                          if(model_specification$threshhold==T){
+                          if(threshhold==T){
                             names_parms=  c(names_parms, "eta11") # set asymmetry parameter to 0 
                           }
-                          if(model_specification$distribution=="t"){
+                          if(distribution=="t"){
                             names_parms=  c(names_parms, "shape") # keep df_t > 2 due to likelihood fct
                           }
                           
@@ -251,7 +247,7 @@
                         # model evaluation
                             # stationarity
                             sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
-                            if(model_specification$threshhold==T){
+                            if(threshhold==T){
                               sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$eta11 # adjust if threshhold is active
                             }
                             

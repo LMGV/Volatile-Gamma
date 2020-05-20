@@ -77,7 +77,7 @@ buildAndPruneTree = function(returns, split_variables, list_split_variables,mode
       #  Simplification: split both nodes once (do not choose best split between nodes)
       # run split function for both nodes. 
       split_2_1 = find_split(split_1$subsample_lower, split_variables, list_split_variables,model_specification, max_lags)
-      split_2_2 =  find_split(split_1$subsample_higher, split_variables, list_split_variables,model_specification, max_lags)
+      split_2_2 =  find_split(split_1$subsample_higher, split_variables, list_split_variables,model_specification ,max_lags)
       
     # complete split information table
       split_order =  as.data.frame(matrix(nrow = 4, ncol = 7,))
@@ -99,17 +99,30 @@ buildAndPruneTree = function(returns, split_variables, list_split_variables,mode
     loglik_submodels = rep(-10^10, length(submodels))
   
     # estimate models
+      ar = 1
+      ma = 1
+      threshhold = F
+      th_value  = 0 # not optimized within fct
+      data_threshhold = 0
+      distribution ="t"
+      start_parms = c(0,0.1,  rep(0.1/ma,ma), rep(0.9/ar,ar)) # initialize parms. 
+      if(threshhold==T){
+        start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
+      }
+      if(distribution=="t"){
+        start_parms=  c(start_parms, 6) # keep df_t > 2 due to likelihood fct
+      }
+      number_restrictions = length(start_parms)
       for (submodels_iter in 1:length(submodels)){
-        opt_parms= nlm(garchEstimation,model_specification$start_parms,
-                       returns = submodels[[submodels_iter]]$return[(max_lags+1):nrow(submodels[[submodels_iter]])],
-                       ma = model_specification$number_ma, ar = model_specification$number_ar, 
-                       threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = model_specification$data_threshhold,
-                       distribution=model_specification$distribution,
-                       print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=F)
-        
+        opt_parms= nlm(garchEstimation,start_parms,
+                       returns = submodels[[submodels_iter]]$return[(max_lags+1):nrow(submodels[[submodels_iter]])],  ar = ar, ma = ma,
+                       threshhold = threshhold, th_value = th_value, data_threshhold = data_threshhold,
+                       distribution=distribution,
+                       print.level=0,iterlim=1000, check.analyticals=1)
         loglik_submodels[submodels_iter] = -opt_parms$minimum
       }
-    
+      print("loglik_submodels")
+      print(loglik_submodels)
     # define all possible subtrees with number of active submodels. number is position in submodels
       possible_subtrees = list(c(1), c(2,3), c(3,4,5), c(2,6,7), c(4,5,6,7))
       samples_groups_in_subtrees = list(c(1:4), c(1:2,3:4),c(1:4),c(1:4),c(1:4),c(1:4),c(1:4))
@@ -119,11 +132,10 @@ buildAndPruneTree = function(returns, split_variables, list_split_variables,mode
       
       for (subtree_iter in 1:length(aic_subtrees)){
         logLiks  = loglik_submodels[possible_subtrees[[subtree_iter]]]
-        aic_subtrees[subtree_iter] = my_aic(sum(logLiks), length(logLiks)*model_specification$number_parms_estimated) # parms is estimated parm/model * number models (each model has same number parms)
+        aic_subtrees[subtree_iter] = my_aic(sum(logLiks), length(logLiks)*number_restrictions) # parms is estimated parm/model * number models (each model has same number parms)
       }
-      print("aic subtrees")
+      print("aic_subtrees")
       print(aic_subtrees)
-    
     # select subtree with min aic
       best_subtree_indic = which.min(aic_subtrees)
       best_subtrees = possible_subtrees[[best_subtree_indic]]
@@ -156,16 +168,26 @@ buildAndPruneTree = function(returns, split_variables, list_split_variables,mode
 # function to find optimal split for GARCH 1,1 models
 find_split = function(returns, split_variables, list_split_variables, model_specification,max_lags){
   # step 1) find optimal GARCH 1/1 for sample. remove first max_lags obs since they are not used by TreeGarch either
-
-  print("find_split")
-  print(model_specification)
-  
-    # estimate model speficied in input
-    opt_parms= nlm(garchEstimation,model_specification$start_parms,
-                   returns = returns$return[(max_lags+1):nrow(returns)],   ma = model_specification$number_ma, ar = model_specification$number_ar, 
-                   threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = model_specification$data_threshhold,
-                   distribution=model_specification$distribution,
-                   print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=F)
+  # inputs fct
+  ar = 1
+  ma = 1
+  threshhold = F
+  th_value  = 0 # not optimized within fct
+  data_threshhold = 0
+  distribution ="t"
+  start_parms = c(0,0.1,  rep(0.1/ma,ma), rep(0.9/ar,ar)) # initialize parms. 
+  if(threshhold==T){
+    start_parms=  c(start_parms, 0) # set asymmetry parameter to 0 
+  }
+  if(distribution=="t"){
+    start_parms=  c(start_parms, 6) # keep df_t > 2 due to likelihood fct
+  }
+  # estimate basic Garch (1,1) for sample
+  opt_parms= nlm(garchEstimation,start_parms,
+                 returns = returns$return[(max_lags+1):nrow(returns)],  ar = ar, ma = ma,
+                 threshhold = threshhold, th_value = th_value, data_threshhold = data_threshhold,
+                 distribution=distribution,
+                 print.level=0,iterlim=1000, check.analyticals=1)
   
   # step 2) split sample via reduction in log likelihood
   optimal_split = as.data.frame(matrix(nrow = length(list_split_variables), ncol = 3,))
@@ -200,20 +222,18 @@ find_split = function(returns, split_variables, list_split_variables, model_spec
       # split sample starting from first obs that is not NA for splitting value
       subsample1 = split_data$return[(split_data$split_var < split_threshholds[i])]
       subsample2 = split_data$return[(split_data$split_var >=split_threshholds[i])]
-
+      
       # estimate GARCH in subsamples and get sum of likelihood
       opt_parms1= nlm(garchEstimation,start_parms,
-                     returns = subsample1,   ma = model_specification$number_ma, ar = model_specification$number_ar, 
-                     threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = model_specification$data_threshhold,
-                     distribution=model_specification$distribution,
-                     print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=F)
-      
+                      returns = subsample1,  ar = ar, ma = ma,
+                      threshhold = F, th_value = 0, data_threshhold = data_threshhold,
+                      distribution=distribution,
+                      iterlim=1000, check.analyticals=1)
       opt_parms2= nlm(garchEstimation,start_parms,
-                      returns = subsample2,   ma = model_specification$number_ma, ar = model_specification$number_ar, 
-                      threshhold = model_specification$threshhold_included, th_value = model_specification$th_value, data_threshhold = model_specification$data_threshhold,
-                      distribution=model_specification$distribution,
-                      print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=F)
-
+                      returns = subsample2,  ar = ar, ma = ma,
+                      threshhold = F, th_value = 0, data_threshhold = data_threshhold,
+                      distribution=distribution,
+                      iterlim=1000, check.analyticals=1)
       single_split_criterion_table$logLikSample1[i] = -opt_parms1$minimum
       single_split_criterion_table$logLikSample2[i] = -opt_parms2$minimum
     }
@@ -227,7 +247,7 @@ find_split = function(returns, split_variables, list_split_variables, model_spec
   # pick optimal covariate and threshhold to split
   indic_optimal_covariate_and_split = which.max(optimal_split$improvementLogLik)
   selected_split  =optimal_split[indic_optimal_covariate_and_split,]
-  
+
   # If no split is found: return old data, do n
   if(selected_split$improvementLogLik <=0) {
     print("no improving split found")
@@ -256,7 +276,8 @@ find_split = function(returns, split_variables, list_split_variables, model_spec
     
     # create list and get names 
     result = list(returns, selected_split, final_subsample_split1, final_subsample_split2) # return back split sample
-    
+    print("selected_split")
+    print(selected_split)
     names(result) = c("input_returns", "selected_split", "subsample_lower", "subsample_higher")
   }
   return(result)
@@ -289,6 +310,7 @@ garchEstimation = function(theta, returns, ma,  ar,threshhold,th_value,data_thre
       if (length(theta) != (1+1 + ma+ ar+ as.numeric(threshhold) + as.numeric(distribution=="t"))) { # number of parms: mean return+ constant + ar +ma + threshhold_parameter (if active) + degrees of freedom t (if active)
         print("Error: Number of input parameters does not match length of parameter vector in garchEstimation")
       } 
+    
     
       # assign coefficients:
       mu_coef = theta[1]
@@ -345,9 +367,8 @@ garchEstimation = function(theta, returns, ma,  ar,threshhold,th_value,data_thre
         log_liklihood = (n+1-max_lags)*log(sqrt(2*pi))+sum(0.5*((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/sigmasq[(max_lags+1):(n+1)]) + sum(0.5*log(sigmasq[(max_lags+1):(n+1)]))
         return(log_liklihood)
       } else  if (distribution=="t"){
-        log_liklihood = -(n+1-max_lags)*log(gamma((df_t_coef+1)/2)/(gamma(df_t_coef/2)*sqrt(pi*(df_t_coef-2)))) + 0.5*sum(log(sigmasq[(max_lags+1):(n+1)]))+  (df_t_coef+1)/2*sum(log(1+((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/((df_t_coef-2)*sigmasq[(max_lags+1):(n+1)]))) + 10^(10)*(df_t_coef<2)+10^(10)*(df_t_coef>200) 
-
-       return(log_liklihood)
+        log_liklihood = -(n+1-max_lags)*log(gamma((df_t_coef+1)/2)/(gamma(df_t_coef/2)*sqrt(pi*(df_t_coef-2)))) + (df_t_coef+1)/2*sum(log(1+((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/((df_t_coef-2)*sigmasq[(max_lags+1):(n+1)]))) + 0.5*sum(log(sigmasq[(max_lags+1):(n+1)]))
+        return(log_liklihood)
       }
       
     # audrino implementation likelihood to compare. Delivers same results

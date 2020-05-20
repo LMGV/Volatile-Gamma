@@ -107,8 +107,12 @@ buildAndPruneTree = function(returns, split_variables, list_split_variables,mode
                        distribution=model_specification$distribution,
                        print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=F)
         
+        print("opt_parms in tree pruning")
+        print(opt_parms)
         loglik_submodels[submodels_iter] = -opt_parms$minimum
       }
+    print("loglik_submodels")
+    print(loglik_submodels)
     
     # define all possible subtrees with number of active submodels. number is position in submodels
       possible_subtrees = list(c(1), c(2,3), c(3,4,5), c(2,6,7), c(4,5,6,7))
@@ -290,6 +294,13 @@ garchEstimation = function(theta, returns, ma,  ar,threshhold,th_value,data_thre
         print("Error: Number of input parameters does not match length of parameter vector in garchEstimation")
       } 
     
+    # Workaroud for convergence issue: set min and max df of t-distribution to 2.2 to avoid infinite values of objective function
+    # if (distribution ==  "t" ){
+    #   theta[length(theta)] = max(theta[length(theta)],2.2)
+    #   theta[length(theta)] = min(theta[length(theta)],350)
+    # } 
+    
+    
       # assign coefficients:
       mu_coef = theta[1]
       constant_coef = theta[2]
@@ -345,7 +356,7 @@ garchEstimation = function(theta, returns, ma,  ar,threshhold,th_value,data_thre
         log_liklihood = (n+1-max_lags)*log(sqrt(2*pi))+sum(0.5*((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/sigmasq[(max_lags+1):(n+1)]) + sum(0.5*log(sigmasq[(max_lags+1):(n+1)]))
         return(log_liklihood)
       } else  if (distribution=="t"){
-        log_liklihood = -(n+1-max_lags)*log(gamma((df_t_coef+1)/2)/(gamma(df_t_coef/2)*sqrt(pi*(df_t_coef-2)))) + 0.5*sum(log(sigmasq[(max_lags+1):(n+1)]))+  (df_t_coef+1)/2*sum(log(1+((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/((df_t_coef-2)*sigmasq[(max_lags+1):(n+1)]))) + 10^(10)*(df_t_coef<2)+10^(10)*(df_t_coef>200) 
+        log_liklihood = -(n+1-max_lags)*log(gamma((df_t_coef+1)/2)/(gamma(df_t_coef/2)*sqrt(pi*(df_t_coef-2)))) + 0.5*sum(log(sigmasq[(max_lags+1):(n+1)]))+  (df_t_coef+1)/2*sum(log(1+((data[(max_lags+1):(n+1)]-mean_ret[(max_lags+1):(n+1)])^2)/((df_t_coef-2)*sigmasq[(max_lags+1):(n+1)]))) + 10^(10)*(df_t_coef<2)+10^(10)*(df_t_coef>50) 
 
        return(log_liklihood)
       }
