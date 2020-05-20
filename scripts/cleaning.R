@@ -82,8 +82,11 @@
       ts_r <- ts_r[(ts_r$rub > quantile(ts_r$rub,quantile_outliers)) & (ts_r$rub < quantile(ts_r$rub,1-quantile_outliers)) & (ts_r$oil > quantile(ts_r$oil,quantile_outliers))& (ts_r$oil < quantile(ts_r$oil,1-quantile_outliers))]
       
 
-
 #save cleaned data
   #write.table(coredata(ts_r), "data/data.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
-  write.table(coredata(ts_r), "data/data_outliers_1_with_values.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  #write.table(coredata(ts_r), "data/data_outliers_1_with_values.csv", row.names = index(ts_r), col.names = names(ts_r), sep=",")
+  ts_r <- data.frame(date=index(ts_r), coredata(ts_r))
+  
+  # note, that this file is overwritten by the output of datamerging.R
+  write.table(ts_r, "data/data_outliers_1_with_values.csv", sep=",")
   
