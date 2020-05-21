@@ -6,6 +6,7 @@ library(xts)
 library(plyr)
 library(dplyr)
 library(tidyr)
+library(xtable)
 
 ####Import Univariate GARCH Models####
 full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/model_and_prediction.rds")
@@ -152,8 +153,31 @@ for (i in 1:nrow(est)) {
 
 returns <- merged_estimates_returns[,13:14]
 
-loss_function <- 3
 output_MSE <- model_comparison(estimates_1, estimates_2, returns, loss_function = 3)
 output_MSE
+
 output_MEA <- model_comparison(estimates_1, estimates_2, returns, loss_function = 2)
-output_MEA
+
+####Table output####
+#DMW
+model_comp <- matrix(NA, nrow = 2, ncol = 4)
+model_comp[1:2,1:2] <- output_MSE$Loss_function
+model_comp[1,3:4] <- output_MSE$DMW
+model_comp[2,3:4] <- output_MEA$DMW
+colnames(model_comp) <- c("GARCH", "Tree-GARCH", "DMW", "p")
+rownames(model_comp) <- c("MSE", "MEA")
+xtable(model_comp,digits = 4)
+
+#DCC
+dcc_pars <- matrix(NA, nrow = 3, ncol = 2)
+dcc_pars[1,1] <- full_sample[["dccoutput"]][["fit"]]@mfit[["coef"]][["[Joint]dcca1"]]
+dcc_pars[2,1] <- full_sample[["dccoutput_tree_1"]][["fit"]]@mfit[["coef"]][["[Joint]dcca1"]]
+dcc_pars[3,1] <- full_sample[["dccoutput_tree_2"]][["fit"]]@mfit[["coef"]][["[Joint]dcca1"]]
+
+dcc_pars[1,2] <- full_sample[["dccoutput"]][["fit"]]@mfit[["coef"]][["[Joint]dccb1"]]
+dcc_pars[2,2] <- full_sample[["dccoutput_tree_1"]][["fit"]]@mfit[["coef"]][["[Joint]dccb1"]]
+dcc_pars[3,2] <- full_sample[["dccoutput_tree_2"]][["fit"]]@mfit[["coef"]][["[Joint]dccb1"]]
+
+colnames(dcc_pars) <- c("alpha1","beta1")
+rownames(dcc_pars) <- c("dcc-GARCH", "dcc-Tree-GARCH sample 1","dcc-Tree-GARCH sample 2")
+xtable(dcc_pars,digits = 5)
