@@ -64,18 +64,18 @@ DMW <- function(returns, estimates_1, estimates_2, real_cov, loss_function){ #1=
 }
 
 model_comparison <- function(estimates_1, estimates_2, returns, loss_function){
-  QLIKE_1 <- QLIKE(returns, estimates_1)
-  QLIKE_2 <- QLIKE(returns, estimates_2)
+  #QLIKE_1 <- QLIKE(returns, estimates_1)
+  #QLIKE_2 <- QLIKE(returns, estimates_2)
   loss_function <- loss_function
   real_cov <- real_cov(returns)
   MAEMSE_1 <- MEA_MSE(real_cov, estimates_1)
   MAEMSE_2 <- MEA_MSE(real_cov, estimates_2)
   DMW <- DMW(returns, estimates_1, estimates_2, real_cov, loss_function)
-  comparison <- matrix(data = NA,nrow = 3,ncol = 2)
+  comparison <- matrix(data = NA,nrow = 2,ncol = 2)
   comparison[1:2,1] <- MAEMSE_1
   comparison[1:2,2] <- MAEMSE_2
-  comparison[3,1] <- QLIKE_1
-  comparison[3,2] <- QLIKE_2
+  #comparison[3,1] <- QLIKE_1
+  #comparison[3,2] <- QLIKE_2
   out_put <- list("Loss_function"= comparison, "DMW"= DMW)
   out_put
 }
