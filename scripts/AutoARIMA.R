@@ -4,99 +4,81 @@ setwd("C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/da
 
 data <- read.table("data_outliers_1_with_values.csv", sep = ",")
 #data1 <- read.table("data.csv", sep = ",")
-data$date <- as.Date(data$date, "%Y-%m-%d")
 
 #### ACF and PACF ----
-acf(data$oil, lag.max = 30, plot = TRUE)
-acf(data$rub, lag.max = 30, plot = TRUE)
-
-data2 <- data^2
-acf(data2$oil, lag.max = 30, plot = TRUE)
-acf(data2$rub, lag.max = 30, plot = TRUE)
+  acf(data$oil, lag.max = 30, plot = TRUE)
+  acf(data$rub, lag.max = 30, plot = TRUE)
+  
+  data2 <- data^2
+  acf(data2$oil, lag.max = 30, plot = TRUE)
+  acf(data2$rub, lag.max = 30, plot = TRUE)
 
 #### Ljung-Box test ----
-#acf(data2$oil, lag.max = 30, plot = TRUE)$acf[2]
 
-#length(data2$oil)*(length(data2$oil)+2)*(acf(data2$oil, lag.max = 30, plot = TRUE)$acf[2]^2/(length(data2$oil))-1)
-
-# H0: independence
-Box.test(data$oil, lag = 2, type = "Ljung-Box")
-Box.test(data$rub, lag = 2, type = "Ljung-Box")
+  # H0: independence
+  Box.test(data$oil, lag = 2, type = "Ljung-Box")
+  Box.test(data$rub, lag = 2, type = "Ljung-Box")
 
 #### Dickey-Fuller test ----
 
-# H0: unit root
-
-# this function creates variables for the DF test and ARIMA fit
-create.var <- function(data){
+  # H0: unit root
   
-  data <- na.omit(data)
-  y.t <- data[-1]
-  y.t_1 <- data[-length(data)]
-  x <- matrix(c(rep(1, length(y.t_1)), y.t_1), nrow = length(y.t_1), ncol = 2) # matrix of a constant and lagged dep var
+  # this function creates variables for the DF test and ARIMA fit
+  create.var <- function(data){
+    
+    data <- na.omit(data)
+    y.t <- data[-1]
+    y.t_1 <- data[-length(data)]
+    x <- matrix(c(rep(1, length(y.t_1)), y.t_1), nrow = length(y.t_1), ncol = 2) # matrix of a constant and lagged dep var
+    
+    varlist <- list("y" = y.t, "x" = x)
+    return(varlist)
+    
+  }
+    
+    # assigning all the variables 
+    oil.t <- create.var(data$oil)$y
+    x.oil <- create.var(data$oil)$x
+    
+    rub.t   <- create.var(data$rub)$y
+    x.rub   <- create.var(data$rub)$x
+    
+    for (i in colnames(data)[c(7, 9, 11)]){
+      a <- create.var(data[[i]])$y
+      b <- create.var(data[[i]])$x
+      
+      assign(paste(i, ".t", sep = ""), a)
+      assign(paste("x.", i, sep = ""), b)
+    }
+    
   
-  varlist <- list("y" = y.t, "x" = x)
-  return(varlist)
+  # this function performs a DF test with a constant; returns 1 if differencing is required and 0 otherwise
+  df.test <- function(y, X, cl){ # cl can be one of 0.01, 0.025, 0.05, 0.1
+    if( !(cl %in% c(0.01, 0.025, 0.05, 0.1)) ) stop('cl must be one of 0.01, 0.025, 0.05, 0.1')
+    betas.hat   <- solve(crossprod(X)) %*% t(X) %*% y
+    sigma.2.hat <- crossprod(y - (X %*% betas.hat)) / (nrow(X) - ncol(X))
+    varcovm     <- as.vector(sigma.2.hat) * solve(crossprod(X))
+    s.e         <- sqrt(diag(varcovm))
+    d.f.stat    <- (betas.hat[2]-1)/s.e[2]
+    conf.levels <- c(0.01, 0.025, 0.05, 0.1)
+    crit.values <- c(-3.434, -3.120, -2.863, -2.568)
+    
+    if (d.f.stat < crit.values[match(cl, conf.levels)]){
+      d <- 0
+    } else {
+      d <- 1
+    }
+    
+    return(d)
+  }
   
-}
-  
-  # assigning all the variables 
-  oil.t <- create.var(data$oil)$y
-  x.oil <- create.var(data$oil)$x
-  
-  rub.t   <- create.var(data$rub)$y
-  x.rub   <- create.var(data$rub)$x
+  d.oil <- df.test(oil.t, x.oil, 0.05)
+  d.rub <- df.test(rub.t, x.rub, 0.05)
   
   for (i in colnames(data)[c(7, 9, 11)]){
-    a <- create.var(data[[i]])$y
-    b <- create.var(data[[i]])$x
-    
-    assign(paste(i, ".t", sep = ""), a)
-    assign(paste("x.", i, sep = ""), b)
+    assign(paste("d.", i, sep = ""), df.test(eval(parse(text = paste(i, ".t", sep = ""))), 
+                                             eval(parse(text = paste("x.", i, sep = ""))), 0.05))
   }
-  
-  #yc <- c("quarter", "one", "two", "three", "five", "seven", "ten", "fifteen", "twenty", "thirty")
-  
-    #for (i in seq(12, 21)){
-    #  a <- create.var(data[[colnames(data)[i]]])$y
-    #  b <- create.var(data[[colnames(data)[i]]])$x
-      
-    #  assign(paste("yc.",   yc[i-11], ".t", sep = ""), a)
-    #  assign(paste("x.yc.", yc[i-11],       sep = ""), b)
-    #}
-
-# this function performs a DF test with a constant; returns 1 if differencing is required and 0 otherwise
-df.test <- function(y, X, cl){ # cl can be one of 0.01, 0.025, 0.05, 0.1
-  if( !(cl %in% c(0.01, 0.025, 0.05, 0.1)) ) stop('cl must be one of 0.01, 0.025, 0.05, 0.1')
-  betas.hat   <- solve(crossprod(X)) %*% t(X) %*% y
-  sigma.2.hat <- crossprod(y - (X %*% betas.hat)) / (nrow(X) - ncol(X))
-  varcovm     <- as.vector(sigma.2.hat) * solve(crossprod(X))
-  s.e         <- sqrt(diag(varcovm))
-  d.f.stat    <- (betas.hat[2]-1)/s.e[2]
-  conf.levels <- c(0.01, 0.025, 0.05, 0.1)
-  crit.values <- c(-3.434, -3.120, -2.863, -2.568)
-  
-  if (d.f.stat < crit.values[match(cl, conf.levels)]){
-    d <- 0
-  } else {
-    d <- 1
-  }
-  
-  return(d)
-}
-
-d.oil <- df.test(oil.t, x.oil, 0.05)
-d.rub <- df.test(rub.t, x.rub, 0.05)
-
-for (i in colnames(data)[c(7, 9, 11)]){
-  assign(paste("d.", i, sep = ""), df.test(eval(parse(text = paste(i, ".t", sep = ""))), 
-                                           eval(parse(text = paste("x.", i, sep = ""))), 0.05))
-}
-
-#for (i in seq(12, 21)){
-#  assign(paste("d.yc.", yc[i-11], sep = ""), df.test(eval(parse(text = paste("yc.", yc[i-11], ".t", sep = ""))),
-#                                                     eval(parse(text = paste("x.yc.", yc[i-11], sep = ""))), 0.05))
-#}
 
 #### ARIMA functions definitions ----
 
@@ -264,109 +246,99 @@ best.ARIMA <- function(y, p_grid, d, q_grid){
 
 #### ARIMA model fit ----
 
-model.oil <- best.ARIMA(oil.t, c(0, 1, 2), d.oil, c(0, 1, 2))
-model.rub <- best.ARIMA(rub.t, c(0, 1, 2), d.rub, c(0, 1, 2))
-
-
-# this loop fits ARIMA models for MOEX, SPX and RUBEUR
-for (i in colnames(data)[c(7, 9, 11)]){
-  y  <- eval(parse(text = paste(i, ".t", sep = "")))
-  d  <- eval(parse(text = paste("d.", i, sep = "")))
-  ba <- best.ARIMA(y, c(0, 1, 2), d, c(0, 1, 2))
+  model.oil <- best.ARIMA(oil.t, c(0, 1, 2), d.oil, c(0, 1, 2))
+  model.rub <- best.ARIMA(rub.t, c(0, 1, 2), d.rub, c(0, 1, 2))
   
-  assign(paste("model.", i, sep = ""), ba)
-}
-
-
-# this loop fits ARIMA models for diferrent yc times
-#for (i in seq(12, 13)){
-#  y  <- eval(parse(text = paste("yc.", yc[i-11], ".t", sep = "")))
-#  d  <- eval(parse(text = paste("d.yc.", yc[i-11], sep = "")))
-#  ba <- best.ARIMA(y, c(0, 1, 2), d, c(0, 1, 2))
   
-#  assign(paste("model.", yc[i-11], sep = ""), ba)
-#}
+  # this loop fits ARIMA models for MOEX, SPX and RUBEUR
+  for (i in colnames(data)[c(7, 9, 11)]){
+    y  <- eval(parse(text = paste(i, ".t", sep = "")))
+    d  <- eval(parse(text = paste("d.", i, sep = "")))
+    ba <- best.ARIMA(y, c(0, 1, 2), d, c(0, 1, 2))
+    
+    assign(paste("model.", i, sep = ""), ba)
+  }
 
-#model.yc.one <- best.ARIMA(yc.one.t, c(0, 1, 2), d.yc.one, c(0, 1, 2))
-
-data$rub_errors <- c(0, model.rub$errors)
-data$oil_errors <- c(0, model.oil$errors)
-data$RUBEUR_errors <- c(0, model.RUBEUR$errors)
-
-write.table(data, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_outliers_1_with_values.csv", 
-            sep=",")
-
-acf(model.oil$errors)
-acf(model.rub$errors)
+  data$rub_errors    <- c(0, model.rub$errors)
+  data$oil_errors    <- c(0, model.oil$errors)
+  data$RUBEUR_errors <- c(0, model.RUBEUR$errors)
+  
+  write.table(data, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_outliers_1_with_values.csv", 
+              sep=",")
+  
+  acf(model.oil$errors)
+  acf(model.rub$errors)
 
 # Structural breaks analysis ----
-# there are two identified structural breaks - in 2005 and in 2008
-
-run.ARIMA.fit <- function(data){
+  # there are two identified structural breaks - in 2005 and in 2008
   
-  y.t <- create.var(data)$y
-  x   <- create.var(data)$x
-  d <- df.test(y.t, x, 0.05)
+  run.ARIMA.fit <- function(data){
+    
+    y.t <- create.var(data)$y
+    x   <- create.var(data)$x
+    d <- df.test(y.t, x, 0.05)
+    
+    model.data <- best.ARIMA(y.t, c(0, 1, 2), d, c(0, 1, 2))
+    
+    return(model.data)
+  }
   
-  model.data <- best.ARIMA(y.t, c(0, 1, 2), d, c(0, 1, 2))
+  data$date <- as.Date(data$date, "%Y-%m-%d")
   
-  return(model.data)
-}
-
-# 2000-2005
-  data.2000 <- data[data$date < as.Date("2005-01-01", "%Y-%m-%d"),]
+  # 2000-2005
+    data.2000 <- data[data$date < as.Date("2005-01-01", "%Y-%m-%d"),]
+    
+    model.oil.2000 <- run.ARIMA.fit(data.2000$oil)
+    model.rub.2000 <- run.ARIMA.fit(data.2000$rub)
+    
+    # creating a dataframe for errors after 2008
+    data.e.2000 <- data.frame(Date=data.2000$date,
+                              rub=c(0, model.rub.2000$errors),
+                              oil=c(0, model.oil.2000$errors)) 
+    write.table(data.e.2000, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2000.csv",
+                sep=",")
+    
+  # 2005-2008
+    data.2005 <- data[(data$date >= as.Date("2005-01-01", "%Y-%m-%d")) & (data$date < as.Date("2008-01-01", "%Y-%m-%d")),]
+    
+    model.oil.2005 <- run.ARIMA.fit(data.2005$oil)
+    model.rub.2005 <- run.ARIMA.fit(data.2005$rub)
+    
+    # creating a dataframe for errors after 2008
+    data.e.2005 <- data.frame(Date=data.2005$date,
+                              rub=c(0, model.rub.2005$errors),
+                              oil=c(0, model.oil.2005$errors)) 
+    
+    write.table(data.e.2005, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2005.csv",
+                sep=",")
   
-  model.oil.2000 <- run.ARIMA.fit(data.2000$oil)
-  model.rub.2000 <- run.ARIMA.fit(data.2000$rub)
-  
-  # creating a dataframe for errors after 2008
-  data.e.2000 <- data.frame(Date=data.2000$date,
-                            rub=c(0, model.rub.2000$errors),
-                            oil=c(0, model.oil.2000$errors)) 
-  write.table(data.e.2000, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2000.csv",
-              sep=",")
-  
-# 2005-2008
-  data.2005 <- data[(data$date >= as.Date("2005-01-01", "%Y-%m-%d")) & (data$date < as.Date("2008-01-01", "%Y-%m-%d")),]
-  
-  model.oil.2005 <- run.ARIMA.fit(data.2005$oil)
-  model.rub.2005 <- run.ARIMA.fit(data.2005$rub)
-  
-  # creating a dataframe for errors after 2008
-  data.e.2005 <- data.frame(Date=data.2005$date,
-                            rub=c(0, model.rub.2005$errors),
-                            oil=c(0, model.oil.2005$errors)) 
-  
-  write.table(data.e.2005, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2005.csv",
-              sep=",")
-
-# 2008-2020
-  data.2008 <- data[data$date >= as.Date("2008-01-01", "%Y-%m-%d"),]
-  
-  oil.2008.t <- create.var(data.2008$oil)$y
-  x.oil.2008 <- create.var(data.2008$oil)$x
-  
-  rub.2008.t <- create.var(data.2008$rub)$y
-  x.rub.2008 <- create.var(data.2008$rub)$x
-  
-  d.oil.2008 <- df.test(oil.2008.t, x.oil.2008, 0.05)
-  d.rub.2008 <- df.test(rub.2008.t, x.rub.2008, 0.05)
-  
-  model.oil.2008 <- best.ARIMA(oil.2008.t, c(0, 1, 2), d.oil.2008, c(0, 1, 2))
-  model.rub.2008 <- best.ARIMA(rub.2008.t, c(0, 1, 2), d.rub.2008, c(0, 1, 2))
+  # 2008-2020
+    data.2008 <- data[data$date >= as.Date("2008-01-01", "%Y-%m-%d"),]
+    
+    oil.2008.t <- create.var(data.2008$oil)$y
+    x.oil.2008 <- create.var(data.2008$oil)$x
+    
+    rub.2008.t <- create.var(data.2008$rub)$y
+    x.rub.2008 <- create.var(data.2008$rub)$x
+    
+    d.oil.2008 <- df.test(oil.2008.t, x.oil.2008, 0.05)
+    d.rub.2008 <- df.test(rub.2008.t, x.rub.2008, 0.05)
+    
+    model.oil.2008 <- best.ARIMA(oil.2008.t, c(0, 1, 2), d.oil.2008, c(0, 1, 2))
+    model.rub.2008 <- best.ARIMA(rub.2008.t, c(0, 1, 2), d.rub.2008, c(0, 1, 2))
+    
+    
+    # creating a dataframe for errors after 2008
+    data.e.2008 <- data.frame(Date=data.2008$date,
+                              rub=c(0, model.rub.2008$errors),
+                              oil=c(0, model.oil.2008$errors)) 
+    
+    write.table(data.e.2008, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2008.csv",
+                sep=",")
+    
   
   
-  # creating a dataframe for errors after 2008
-  data.e.2008 <- data.frame(Date=data.2008$date,
-                            rub=c(0, model.rub.2008$errors),
-                            oil=c(0, model.oil.2008$errors)) 
-  
-  write.table(data.e.2008, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2008.csv",
-              sep=",")
-  
-
-
-model.rub.2005$p
+  model.rub.2005$p
 
 
 
