@@ -1,8 +1,8 @@
 library(forecast)
 library(tseries)
-setwd("C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data")
+setwd("C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub")
 
-data <- read.table("data_outliers_1_with_values.csv", sep = ",")
+data <- read.table("data/data_outliers_1_with_values.csv", sep = ",")
 #data1 <- read.table("data.csv", sep = ",")
 
 #### ACF and PACF ----
@@ -72,8 +72,8 @@ data <- read.table("data_outliers_1_with_values.csv", sep = ",")
     return(d)
   }
   
-  d.oil <- df.test(oil.t, x.oil, 0.05)
-  d.rub <- df.test(rub.t, x.rub, 0.05)
+  d.oil <- df.test(oil.t, x.oil, 0.01)
+  d.rub <- df.test(rub.t, x.rub, 0.01)
   
   for (i in colnames(data)[c(7, 9, 11)]){
     assign(paste("d.", i, sep = ""), df.test(eval(parse(text = paste(i, ".t", sep = ""))), 
@@ -196,7 +196,7 @@ log.lik <- function(parameters, y, p, q) {
   return(-1 * ll)
 }
 
-# this function fits an ARIMA model and returns estimated coefficients, value of LL function, value of BIC, order of AR part, 
+# this function fits an ARIMA model and returns estimated coefficients, estimated sigma^2, value of LL function, value of BIC, order of AR part, 
 # order of MA part, order of differencing, vector of ARMA errors and a table of obtained BIC values of all models tried
 fit.ARIMA <- function(y, p, d, q){ # data vector, AR order, differencing, MA order
   if (d == 1){
@@ -266,81 +266,28 @@ best.ARIMA <- function(y, p_grid, d, q_grid){
   write.table(data, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_outliers_1_with_values.csv", 
               sep=",")
   
+  cat(model.oil$LogLikelihoodvalue, file="data/ARIMA_LL.txt",sep="\n")
+  cat(model.rub$LogLikelihoodvalue, file="data/ARIMA_LL.txt",sep="\n", append = TRUE)
+  
+  cat(model.oil$p, file="data/ARIMA_p.txt",sep="\n")
+  cat(model.rub$p, file="data/ARIMA_p.txt",sep="\n", append = TRUE)
+  
+  cat(model.oil$q, file="data/ARIMA_q.txt",sep="\n")
+  cat(model.rub$q, file="data/ARIMA_q.txt",sep="\n", append = TRUE)
+
+# Testing ARIMA errors
   acf(model.oil$errors)
   acf(model.rub$errors)
-
-# Structural breaks analysis ----
-  # there are two identified structural breaks - in 2005 and in 2008
   
-  run.ARIMA.fit <- function(data){
-    
-    y.t <- create.var(data)$y
-    x   <- create.var(data)$x
-    d <- df.test(y.t, x, 0.05)
-    
-    model.data <- best.ARIMA(y.t, c(0, 1, 2), d, c(0, 1, 2))
-    
-    return(model.data)
-  }
+  oil.errors.t <- create.var(model.oil$errors)$y
+  x.oil.errors <- create.var(model.oil$errors)$x
   
-  data$date <- as.Date(data$date, "%Y-%m-%d")
+  d.oil.errors <- df.test(oil.errors.t, x.oil.errors, 0.01)
   
-  # 2000-2005
-    data.2000 <- data[data$date < as.Date("2005-01-01", "%Y-%m-%d"),]
-    
-    model.oil.2000 <- run.ARIMA.fit(data.2000$oil)
-    model.rub.2000 <- run.ARIMA.fit(data.2000$rub)
-    
-    # creating a dataframe for errors after 2008
-    data.e.2000 <- data.frame(Date=data.2000$date,
-                              rub=c(0, model.rub.2000$errors),
-                              oil=c(0, model.oil.2000$errors)) 
-    write.table(data.e.2000, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2000.csv",
-                sep=",")
-    
-  # 2005-2008
-    data.2005 <- data[(data$date >= as.Date("2005-01-01", "%Y-%m-%d")) & (data$date < as.Date("2008-01-01", "%Y-%m-%d")),]
-    
-    model.oil.2005 <- run.ARIMA.fit(data.2005$oil)
-    model.rub.2005 <- run.ARIMA.fit(data.2005$rub)
-    
-    # creating a dataframe for errors after 2008
-    data.e.2005 <- data.frame(Date=data.2005$date,
-                              rub=c(0, model.rub.2005$errors),
-                              oil=c(0, model.oil.2005$errors)) 
-    
-    write.table(data.e.2005, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2005.csv",
-                sep=",")
+  rub.errors.t <- create.var(model.rub$errors)$y
+  x.rub.errors <- create.var(model.rub$errors)$x
   
-  # 2008-2020
-    data.2008 <- data[data$date >= as.Date("2008-01-01", "%Y-%m-%d"),]
-    
-    oil.2008.t <- create.var(data.2008$oil)$y
-    x.oil.2008 <- create.var(data.2008$oil)$x
-    
-    rub.2008.t <- create.var(data.2008$rub)$y
-    x.rub.2008 <- create.var(data.2008$rub)$x
-    
-    d.oil.2008 <- df.test(oil.2008.t, x.oil.2008, 0.05)
-    d.rub.2008 <- df.test(rub.2008.t, x.rub.2008, 0.05)
-    
-    model.oil.2008 <- best.ARIMA(oil.2008.t, c(0, 1, 2), d.oil.2008, c(0, 1, 2))
-    model.rub.2008 <- best.ARIMA(rub.2008.t, c(0, 1, 2), d.rub.2008, c(0, 1, 2))
-    
-    
-    # creating a dataframe for errors after 2008
-    data.e.2008 <- data.frame(Date=data.2008$date,
-                              rub=c(0, model.rub.2008$errors),
-                              oil=c(0, model.oil.2008$errors)) 
-    
-    write.table(data.e.2008, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2008.csv",
-                sep=",")
-    
+  d.rub.errors <- df.test(rub.errors.t, x.rub.errors, 0.01)
   
-  
-  model.rub.2005$p
-
-
-
-
-
+  Box.test(model.oil$errors, lag = 15, type = "Ljung-Box")
+  Box.test(model.rub$errors, lag = 5, type = "Ljung-Box")

@@ -200,7 +200,7 @@ run.ARIMA.fit <- function(data){
   x   <- create.var(data)$x
   d <- df.test(y.t, x, 0.05)
   
-  model.data <- best.ARIMA(y.t, c(0, 1, 2), d, c(0, 1, 2))
+  model.data <- best.ARIMA(y.t, c(0, 1), d, c(0, 1))
   
   return(model.data)
 }

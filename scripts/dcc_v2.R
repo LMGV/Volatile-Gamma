@@ -77,6 +77,6 @@ dcc_function <- function(rub_list, oil_list, rub_pred,oil_pred){
   #multf@fit[[2]]@fit[["sigma"]] <- as.numeric(round(oil_pred$variance_predict,6))
   spec1 <- dccspec(uspec = uspec.n, dccOrder = c(1,1), distribution = "mvt")#, 'mvt'fixed.pars = "fixed.se")#fixed.pars = as.list(coef(sgarch.fit)))
   fit1 <- dccfit(spec1, data = returns, solver = "nlminb", fit = multf, fit.control = list(scale =TRUE)) #solver =c("solnp", "nlminb", "lbfgs", "gosolnp"))
-  fit1
   output <- list("fit"=fit1, "returns" = returns)
+  output
 }
