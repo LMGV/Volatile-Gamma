@@ -31,12 +31,3 @@ dcc_forecast <- function(dccfit, pred_results_1, pred_results_2, returns, covs){
   }
   Q_t
 }
-
-pred_results_1 <- full_sample[["predictions"]][["rub"]][["variance_predict"]]
-pred_results_2 <- full_sample[["predictions"]][["oil"]][["variance_predict"]]
-dccfit <- full_sample[["dccoutput"]][["fit"]]
-returns <- full_sample[["dccoutput"]][["returns"]]
-covs <- full_sample[["dccoutput"]][["fit"]]@mfit[["Q"]]
-
-estimates <- dcc_forecast(dccfit, pred_results_1, pred_results_2, returns, covs)
-full_sample$dccestimates <- estimates 

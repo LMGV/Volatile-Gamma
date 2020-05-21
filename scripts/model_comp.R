@@ -49,7 +49,7 @@ DMW <- function(returns, estimates_1, estimates_2, real_cov, loss_function){ #1=
   for (i in 1:length(estimates_1[,1,1])){
     
     if (loss_function==1) {
-      perf[i]= length(estimates_1[,1,1])*(-log(dmvnorm(returns[i,],mean=colMeans(returns[i,]),sigma=estimates_1[i,,]))+log(dmvnorm(returns[i,],mean=colMeans(returns[,]),sigma=estimates_2[i,,]))) #QLIKE
+      perf[i]= length(estimates_1[,1,1])*(-log(dmvnorm(returns[i,],mean=colMeans(returns),sigma=estimates_1[i,,]))+log(dmvnorm(returns[i,],mean=colMeans(returns),sigma=estimates_2[i,,]))) #QLIKE
     } else if (loss_function==2) {
       
       perf[i]= mean(abs(real_cov[i,,]-estimates_1[i,,])) - mean(abs(real_cov[i,,]-estimates_2[i,,])) #MAE
@@ -63,10 +63,6 @@ DMW <- function(returns, estimates_1, estimates_2, real_cov, loss_function){ #1=
   DMW <- cbind(DMW_test,DMW_p) 
 }
 
-spec.pgram(x, spans = NULL, kernel, taper = 0.1,
-           pad = 0, fast = TRUE, demean = FALSE, detrend = TRUE,
-           plot = TRUE, na.action = na.fail, ...)
-  
 model_comparison <- function(estimates_1, estimates_2, returns, loss_function){
   QLIKE_1 <- QLIKE(returns, estimates_1)
   QLIKE_2 <- QLIKE(returns, estimates_2)
@@ -83,9 +79,3 @@ model_comparison <- function(estimates_1, estimates_2, returns, loss_function){
   out_put <- list("Loss_function"= comparison, "DMW"= DMW)
   out_put
 }
-
-returns <- full_sample[["dccoutput"]][["returns"]]
-estimates_1 <- full_sample$dccestimates
-estimates_2 <- full_sample$dccestimates
-loss_function <- 3
-output <- model_comparison(estimates_1, estimates_2, returns, loss_function = 1)

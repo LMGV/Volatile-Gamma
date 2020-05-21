@@ -79,15 +79,3 @@ dcc_function <- function(rub_list, oil_list, rub_pred,oil_pred){
   fit1 <- dccfit(spec1, data = returns, solver = "nlminb", fit = multf, fit.control = list(scale =TRUE)) #solver =c("solnp", "nlminb", "lbfgs", "gosolnp"))
   output <- list("fit"=fit1, "returns" = returns)
 }
-
-####Import Univariate GARCH Models####
-full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/model_and_prediction.rds")
-
-rub_list <- full_sample[["models"]][["rub"]][["rub_all"]]
-oil_list <- full_sample[["models"]][["oil"]][["oil_all"]]
-rub_pred <- full_sample[["predictions"]][["rub"]]
-oil_pred <- full_sample[["predictions"]][["oil"]]
-
-####Call DCC Funcitons####
-dccoutput <- dcc_function(rub_list,oil_list,rub_pred,oil_pred)
-full_sample$dccoutput <- dccoutput
