@@ -19,15 +19,15 @@ in_sample_forecast =  function(models, predict_data, start_date_predictions, end
   predict_data_with_model = filter(predict_data_with_model, date >=start_date_predictions & date <= end_date_predictions)
   
   # predict volatility for each observation 
-  for (i in (1+max_lag_prediction):nrow(predict_data_with_model)){
-    predict_data_with_model$variance_predict[i] = oneDayPredict(predict_data_with_model$analysis_variable[(i-max_lag_prediction):i], 
-                                                                predict_data_with_model$variance_proxy[(i-max_lag_prediction):i],
-                                                                models[[predict_data_with_model$model[i]]])
+  for (i in (2+max_lag_prediction):nrow(predict_data_with_model)){
+    predict_data_with_model$variance_predict[i] = oneDayPredict(predict_data_with_model$analysis_variable[(i-max_lag_prediction-1):(i-1)], 
+                                                                predict_data_with_model$variance_proxy[(i-max_lag_prediction-1):(i-1)],
+                                                                models[[predict_data_with_model$model[i-1]]])
   }
   
   predict_data_with_model = predict_data_with_model[(max_lag_prediction+1):nrow(predict_data_with_model),] # remove missing obs due to lags
   predict_data_with_model$residuals_garch = predict_data_with_model$variance_predict- predict_data_with_model$variance_proxy
-  results = select(predict_data_with_model, date, variance_proxy, variance_predict, residuals_garch, rub_errors, oil_errors)
+  results = select(predict_data_with_model, date, variance_proxy, variance_predict, residuals_garch, rub_errors, oil_errors,  rub_errors_lag1,  oil_errors_lag1)
   return(results)
   
 }
