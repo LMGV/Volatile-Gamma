@@ -181,3 +181,17 @@ dcc_pars[3,2] <- full_sample[["dccoutput_tree_2"]][["fit"]]@mfit[["coef"]][["[Jo
 colnames(dcc_pars) <- c("alpha1","beta1")
 rownames(dcc_pars) <- c("dcc-GARCH", "dcc-Tree-GARCH sample 1","dcc-Tree-GARCH sample 2")
 xtable(dcc_pars,digits = 5)
+
+#Info criterion
+
+info <- matrix(NA, nrow = 2, ncol = 2)
+info[2,1] <- my_aic(likelihood(full_sample[["dccoutput"]][["fit"]]),13)
+info[2,2] <- my_aic((likelihood(full_sample[["dccoutput_tree_2"]][["fit"]])+likelihood(full_sample[["dccoutput_tree_1"]][["fit"]])),13)
+info[1,1] <- likelihood(full_sample[["dccoutput"]][["fit"]])
+info[1,2] <- likelihood(full_sample[["dccoutput_tree_1"]][["fit"]])+likelihood(full_sample[["dccoutput_tree_2"]][["fit"]])
+
+
+
+rownames(info) <- c("LogLik", "AIC")
+colnames(info) <- c("DCC-GARCH", "DCC-Tree-GARCH")
+xtable(info,digits = 5)

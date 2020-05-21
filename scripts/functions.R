@@ -12,7 +12,7 @@ in_sample_forecast =  function(models, predict_data, start_date_predictions, end
   }
   
   # add volatility proxy - daily squared deviation
-  predict_data_with_model= mutate(predict_data_with_model, variance_proxy = (analysis_variable-mean(rub,na.rm=T))^2,
+  predict_data_with_model= mutate(predict_data_with_model, variance_proxy = (analysis_variable)^2,
                                   variance_predict = NA)
   
   # cut timeframe
@@ -229,7 +229,7 @@ line_plot_multiple = function(title, outpath, x,xlab, ylab, names_y, y_percent, 
   if(missing(y_percent)){y_percent = FALSE}
 
   plot = ggplot(data=NULL, aes(x=x))+
-    geom_line(aes(y=y1, col = names_y[1]))
+    geom_line(aes(y=y1), col = "black")
 
   # only add layers if value provided
   if (missing(y2)==F) {

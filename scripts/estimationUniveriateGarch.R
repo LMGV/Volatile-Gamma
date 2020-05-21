@@ -411,13 +411,13 @@
         print("summary(subsamples_tree)")
         print(c(nrow(subsamples_tree[[1]]), nrow(subsamples_tree[[2]])))
         print("split table with pruning")
-        print(xtable(treeGarchResult$split_order, caption = "Splits tree with pruning"))
+        print(xtable(treeGarchResult$split_order_pruned, caption = "Splits tree with pruning", digits = 6))
         print("number obs tree no pruning")
         print(c(nrow(subsamples_tree_no_pruning[[1]]), nrow(subsamples_tree_no_pruning[[2]]),
                                                           nrow(subsamples_tree_no_pruning[[3]]),
                                                                nrow(subsamples_tree_no_pruning[[4]])))
         print("split table no pruning")
-        print(xtable(treeGarchResult$split_order, caption = "Splits tree without pruning"))
+        print(xtable(treeGarchResult$split_order, caption = "Splits tree without pruning", digits = 6))
         
         # 4) Estimate and save GARCH for every terminal leaf (here only for RUBUSD)
         # input data
