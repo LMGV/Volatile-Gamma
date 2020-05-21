@@ -29,11 +29,11 @@ spec_function <- function(rolist){
 
 
 ####DCC####
-dcc_function <- function(rub_list, oil_list){
+dcc_function <- function(rub_list, oil_list, rub_pred,oil_pred){
   rub_specs <- spec_function(rub_list)
   oil_specs <- spec_function(oil_list)
   specs <- list(rub_specs,oil_specs)
-  returns <- cbind(rub_list[["return_data"]],oil_list[["return_data"]])
+  returns <- cbind(rub_pred$rub_errors,oil_pred$oil_errors)
   uspec.n = multispec(specs)
   multf <- multifit(uspec.n, returns, solver ='solnp')
   coefs_oil <- as.vector(t(oil_list[["garch_coefs"]][1,]))
@@ -73,24 +73,21 @@ dcc_function <- function(rub_list, oil_list){
   for (i in 1:ncol(oil_list[["garch_coefs"]])) {
     multf@fit[[2]]@model[["pars"]][which(rownames(multf@fit[[2]]@model[["pars"]]) == colnames(oil_list[["garch_coefs"]])[i]),1] <- oil_list[["garch_coefs"]][1,i]
   }  
-  
+  multf@fit[[1]]@fit[["sigma"]] <- rub_pred$variance_predict
+  multf@fit[[2]]@fit[["sigma"]] <- oil_pred$variance_predict
   spec1 <- dccspec(uspec = uspec.n, dccOrder = c(1,1), distribution = "mvt")#, 'mvt'fixed.pars = "fixed.se")#fixed.pars = as.list(coef(sgarch.fit)))
   fit1 <- dccfit(spec1, data = returns, solver = "nlminb", fit = multf, fit.control = list(scale =TRUE)) #solver =c("solnp", "nlminb", "lbfgs", "gosolnp"))
   output <- list("fit"=fit1, "returns" = returns)
 }
 
 ####Import Univariate GARCH Models####
-full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/univ_oil_rub_tree_models_combined_for_dcc.rds")
+full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/model_and_prediction.rds")
 
+rub_list <- full_sample[["models"]][["rub"]][["rub_all"]]
+oil_list <- full_sample[["models"]][["oil"]][["oil_all"]]
+rub_pred <- full_sample[["predictions"]][["rub"]]
+oil_pred <- full_sample[["predictions"]][["oil"]]
 
 ####Call DCC Funcitons####
-#Sample 1#  
-output1 <- dcc_function(full_sample[["rub_subsample1"]],full_sample[["oil_subsample1"]])
-returns1 <- output1$returns
-dccfit1 <- output1$fit
-
-#Sample 2#
-output2 <- dcc_function(full_sample[["rub_subsample2"]],full_sample[["oil_subsample2"]])
-returns2 <- output2$returns
-dccfit2 <- output2$fit
-
+dccoutput <- dcc_function(rub_list,oil_list,rub_pred,oil_pred)
+full_sample$dccoutput <- dccoutput
