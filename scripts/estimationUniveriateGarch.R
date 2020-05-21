@@ -236,7 +236,7 @@
         
         # estimate model for all univariate inputs
           returns = returns_list[[1]]
-          returns_with_date = returns_list_with_date[[1]]
+          returns_with_date = as.data.frame(returns_list_with_date[[1]])
           
           # list of model specifications for estimation 
           ma = 1
@@ -270,15 +270,13 @@
           names(model_specification_custom_list) = names(returns_list)
           
           # loop though model specifications and save 
-          for (model_spec_iter in 1:length(model_spec_iter)) {
-            
-            
+          for (model_spec_iter in 1:length(model_specification_custom_list)) {
             # workaround: model specific does not work with [[]] referening
             #model_specification_custom = model_specification_custom_list[[model_spec_iter]]
             if(model_spec_iter == 1){
               model_specification_custom = model_specification_custom1
             } else if(model_spec_iter == 2){
-              #model_specification_custom = model_specification_custom2
+              model_specification_custom = model_specification_custom2
             } else {
               model_specification_custom = model_specification_custom3
             }
@@ -300,7 +298,11 @@
               names_parms=  c(names_parms, "shape") # keep df_t > 2 due to likelihood fct
             }
             
-            garch_coefs = as.data.frame(t(c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))
+            if(model_specification_custom$distribution=="t" | model_specification_custom$threshhold==T) {
+              garch_coefs = as.data.frame(t(c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))
+            } else {
+              garch_coefs = as.data.frame(t(c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2)))
+            }
             colnames(garch_coefs) = names_parms
             
             # model evaluation
@@ -324,7 +326,9 @@
             names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","returns_with_date")
             all_selected_model_custom[[model_spec_iter]]  = garch_model
           }
-
+          all_selected_model_custom$rub_normal_11$garch_coefs
+          all_selected_model_custom$rub_t_11$garch_coefs
+          all_selected_model_custom$rub_t_gjr_11$garch_coefs
         # save only custom
         saveRDS(all_selected_model_custom, file = paste0(outpathModels,"univariate_garchs_custom_rub.rds"))
         
