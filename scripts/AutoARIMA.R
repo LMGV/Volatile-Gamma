@@ -274,82 +274,20 @@ best.ARIMA <- function(y, p_grid, d, q_grid){
   
   cat(model.oil$q, file="data/ARIMA_q.txt",sep="\n")
   cat(model.rub$q, file="data/ARIMA_q.txt",sep="\n", append = TRUE)
-  
+
+# Testing ARIMA errors
   acf(model.oil$errors)
   acf(model.rub$errors)
-
-# Structural breaks analysis ----
-  # there are two identified structural breaks - in 2005 and in 2008
   
-  # run.ARIMA.fit <- function(data){
-  #   
-  #   y.t <- create.var(data)$y
-  #   x   <- create.var(data)$x
-  #   d <- df.test(y.t, x, 0.05)
-  #   
-  #   model.data <- best.ARIMA(y.t, c(0, 1, 2), d, c(0, 1, 2))
-  #   
-  #   return(model.data)
-  # }
-  # 
-  # data$date <- as.Date(data$date, "%Y-%m-%d")
-  # 
-  # # 2000-2005
-  #   data.2000 <- data[data$date < as.Date("2005-01-01", "%Y-%m-%d"),]
-  #   
-  #   model.oil.2000 <- run.ARIMA.fit(data.2000$oil)
-  #   model.rub.2000 <- run.ARIMA.fit(data.2000$rub)
-  #   
-  #   # creating a dataframe for errors after 2008
-  #   data.e.2000 <- data.frame(Date=data.2000$date,
-  #                             rub=c(0, model.rub.2000$errors),
-  #                             oil=c(0, model.oil.2000$errors)) 
-  #   write.table(data.e.2000, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2000.csv",
-  #               sep=",")
-  #   
-  # # 2005-2008
-  #   data.2005 <- data[(data$date >= as.Date("2005-01-01", "%Y-%m-%d")) & (data$date < as.Date("2008-01-01", "%Y-%m-%d")),]
-  #   
-  #   model.oil.2005 <- run.ARIMA.fit(data.2005$oil)
-  #   model.rub.2005 <- run.ARIMA.fit(data.2005$rub)
-  #   
-  #   # creating a dataframe for errors after 2008
-  #   data.e.2005 <- data.frame(Date=data.2005$date,
-  #                             rub=c(0, model.rub.2005$errors),
-  #                             oil=c(0, model.oil.2005$errors)) 
-  #   
-  #   write.table(data.e.2005, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2005.csv",
-  #               sep=",")
-  # 
-  # # 2008-2020
-  #   data.2008 <- data[data$date >= as.Date("2008-01-01", "%Y-%m-%d"),]
-  #   
-  #   oil.2008.t <- create.var(data.2008$oil)$y
-  #   x.oil.2008 <- create.var(data.2008$oil)$x
-  #   
-  #   rub.2008.t <- create.var(data.2008$rub)$y
-  #   x.rub.2008 <- create.var(data.2008$rub)$x
-  #   
-  #   d.oil.2008 <- df.test(oil.2008.t, x.oil.2008, 0.05)
-  #   d.rub.2008 <- df.test(rub.2008.t, x.rub.2008, 0.05)
-  #   
-  #   model.oil.2008 <- best.ARIMA(oil.2008.t, c(0, 1, 2), d.oil.2008, c(0, 1, 2))
-  #   model.rub.2008 <- best.ARIMA(rub.2008.t, c(0, 1, 2), d.rub.2008, c(0, 1, 2))
-  #   
-  #   
-  #   # creating a dataframe for errors after 2008
-  #   data.e.2008 <- data.frame(Date=data.2008$date,
-  #                             rub=c(0, model.rub.2008$errors),
-  #                             oil=c(0, model.oil.2008$errors)) 
-  #   
-  #   write.table(data.e.2008, "C:/Users/user/iCloudDrive/SG MiQEF/Financial Volatility/Project/GitHub/data/data_errors_2008.csv",
-  #               sep=",")
-  #   
-  # 
-  # 
-  # model.rub.2005$p
-
-
-
-
-
+  oil.errors.t <- create.var(model.oil$errors)$y
+  x.oil.errors <- create.var(model.oil$errors)$x
+  
+  d.oil.errors <- df.test(oil.errors.t, x.oil.errors, 0.01)
+  
+  rub.errors.t <- create.var(model.rub$errors)$y
+  x.rub.errors <- create.var(model.rub$errors)$x
+  
+  d.rub.errors <- df.test(rub.errors.t, x.rub.errors, 0.01)
+  
+  Box.test(model.oil$errors, lag = 15, type = "Ljung-Box")
+  Box.test(model.rub$errors, lag = 5, type = "Ljung-Box")
