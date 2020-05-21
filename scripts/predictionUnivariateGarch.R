@@ -256,48 +256,6 @@ for (i in 1:length(in_sample_pred_result)) {
   summary(in_sample_pred_result$rub$residuals_garch)
   summary(in_sample_pred_result$oil$residuals_garch)
 
-# simple plots
-ggplot(in_sample_pred_result$rub_tree,
-       aes(x = date, y = variance_proxy)) +
-  geom_line()
-ggplot(in_sample_pred_result$rub_tree,
-       aes(x = date, y = variance_predict)) +
-  geom_line()
-ggplot(in_sample_pred_result$rub_tree,
-       aes(x = date, y = residuals_garch)) +
-  geom_line()
-
- # geom_line(aes(y = variance_predict), color = "blue") 
-
-ggplot(in_sample_pred_result$rub, aes(x = date, y = variance_proxy)) +
-  geom_line(aes(y = variance_predict), color = "red") +
-  geom_line(aes(y = residuals_garch), color = "blue")
-
-ggplot(in_sample_pred_result$oil, aes(x = date, y = variance_proxy)) +
-  geom_line(aes(y = variance_predict), color = "red") +
-  geom_line(aes(y = residuals_garch), color = "blue")
-
-# Correlations
-cor(
-  in_sample_pred_result$rub_tree$variance_predict,
-  in_sample_pred_result$rub$variance_predict
-)
-
-cor(
-  in_sample_pred_result$rub_tree$variance_predict,
-  in_sample_pred_result$rub_tree$variance_proxy
-)
-
-cor(
-  in_sample_pred_result$rub$variance_predict,
-  in_sample_pred_result$rub$variance_proxy
-)
-
-cor(
-  in_sample_pred_result$oil$variance_predict,
-  in_sample_pred_result$oil$variance_proxy
-)
-
 # Plot Vol proxys and model ----
   
   # add MAE proxy
@@ -363,8 +321,8 @@ data_predictions_selected = data_predictions[[i]]
   }
 
 
-xtable(test_results, caption = "MZ - Regression with squared return proxy")
-xtable(test_results, caption = "PVALUES for MZ - Regression with squared return proxy")
+xtable(test_results, caption = "MZ - Regression with squared return proxy", digits = 3)
+xtable(test_results_pval, caption = "PVALUES for MZ - Regression with squared return proxy", digits = 3)
   
 
 # Likelihood tables
@@ -382,7 +340,7 @@ likelihood_models$`Garch(1,1) t` = c(all_selected_model_custom$rub_t_11$model_ev
   likelihood_models$`GJR-Garch(1,1) t` =  c(all_selected_model_custom$rub_t_gjr_11$model_evaluation$log_lik, all_selected_model_custom$rub_t_gjr_11$model_evaluation$aic_model)
   likelihood_models$`Tree-Garch(1,1) t`= c(lik_tree,aic_tree)
   
-xtable(likelihood_models, caption = "Likelihood comparision univariate GARCH-models for RUBUSD")
+xtable(likelihood_models, caption = "Likelihood comparision univariate GARCH-models for RUBUSD", ditigs=3)
 
 # Parameters Garchs
 
@@ -393,7 +351,9 @@ coef_table$model = c("Garch(1,1) normal", "Garch(1,1) t", "GJR-Garch(1,1) t", "S
   coef_table[1,2:4] = c(all_selected_model_custom$rub_normal_11$garch_coefs[c("alpha1","beta1")],"/")
   coef_table[2,2:4] = all_selected_model_custom$rub_t_11$garch_coefs[c("alpha1","beta1","shape")]
   coef_table[3,2:4] = all_selected_model_custom$rub_t_gjr_11$garch_coefs[c("alpha1","beta1","shape")]
-  coef_table[4,2:4] = all_selected_model_tree$rub_subsample1$garch_coefs[c("alpha1","beta1")]
+  coef_table[4,2:4] = all_selected_model_tree$rub_subsample1$garch_coefs[c("alpha1","beta1","shape")]
   coef_table[5,2:4] = all_selected_model_tree$rub_subsample2$garch_coefs[c("alpha1","beta1","shape")]
 
-  xtable(coef_table, caption = "Coefficient comparision univariate GARCH-models for RUBUSD")
+  xtable(coef_table, caption = "Coefficient comparision univariate GARCH-models for RUBUSD",digits =3)
+  
+  
