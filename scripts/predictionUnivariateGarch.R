@@ -65,7 +65,7 @@ predict_data = data.frame(date = index(garch_data_ts_r), coredata(garch_data_ts_
   mutate(analysis_variable = NA)
 
 
-
+model_in_sample_pred = list()
 in_sample_pred_result = list()
 
 model_list_choices = list(all_selected_model_tree, all_selected_model[1],all_selected_model[2] )
@@ -79,6 +79,7 @@ analysis_variable = analysis_variable_choices[1]
 predict_data[, colnames(predict_data) == "analysis_variable"] = predict_data[, colnames(predict_data) == analysis_variable]
 
 # predict variance
+model_in_sample_pred[[1]] = models
 in_sample_pred_result[[1]] = in_sample_forecast(
   models = models,
   predict_data,
@@ -94,6 +95,7 @@ analysis_variable = analysis_variable_choices[1]
 predict_data[, colnames(predict_data) == "analysis_variable"] = predict_data[, colnames(predict_data) == analysis_variable]
 
 # predict variance
+model_in_sample_pred[[2]] = models
 in_sample_pred_result[[2]] = in_sample_forecast(
   models = models ,
   predict_data,
@@ -110,6 +112,7 @@ analysis_variable = analysis_variable_choices[2]
 predict_data[, colnames(predict_data) == "analysis_variable"] = predict_data[, colnames(predict_data) == analysis_variable]
 
 # predict variance
+model_in_sample_pred[[3]] = models
 in_sample_pred_result[[3]] = in_sample_forecast(
   models = models ,
   predict_data,
@@ -127,8 +130,15 @@ in_sample_pred_result[[3]] = in_sample_forecast(
 
 # set names for series and save
 names(in_sample_pred_result) = c("rub_tree", "rub", "oil")
+names(model_in_sample_pred) = c("rub_tree", "rub", "oil")
 saveRDS(in_sample_pred_result,
         file = paste0(outpathModels, "in_sample_pred_result.rds"))
+
+# list with models and predictions
+  overall_model_list = list(model_in_sample_pred, in_sample_pred_result)
+  names(overall_model_list) = c("models","predictions")
+  saveRDS(overall_model_list,
+        file = paste0(outpathModels, "model_and_prediction.rds"))
 
 summary(
   in_sample_pred_result$rub_tree$variance_predict - in_sample_pred_result$rub$variance_predict

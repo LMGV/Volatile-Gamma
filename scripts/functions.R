@@ -27,7 +27,7 @@ in_sample_forecast =  function(models, predict_data, start_date_predictions, end
   
   predict_data_with_model = predict_data_with_model[(max_lag_prediction+1):nrow(predict_data_with_model),] # remove missing obs due to lags
   predict_data_with_model$residuals_garch = predict_data_with_model$variance_predict- predict_data_with_model$variance_proxy
-  results = select(predict_data_with_model, date, variance_proxy, variance_predict, residuals_garch)
+  results = select(predict_data_with_model, date, variance_proxy, variance_predict, residuals_garch, rub_errors, oil_errors)
   return(results)
   
 }

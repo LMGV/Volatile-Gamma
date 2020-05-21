@@ -31,18 +31,46 @@
   outpathModels =  "output/univariateModels/"
   
 # Import Data ----
- garch_data_ts_r  = readRDS("output/univariateDescriptives/garch_data_ts_r.rds") # selected garch data after struc break analysis
- garch_data_ts_r_errors = garch_data_ts_r[,c("rub_errors", "oil_errors")]
+  
+  garch_data_ts_r <- read_csv("data/data_outliers_1_with_values.csv",
+                                          col_types = cols(DGS3MO = col_double(),
+                                                           MOEX = col_double(), RUBEUR_val = col_double(),
+                                                           SPX = col_double(), SPX_val = col_double(),
+                                                           yc_1 = col_double(), yc_10 = col_double(),
+                                                           yc_15 = col_double(), yc_2 = col_double(),
+                                                           yc_20 = col_double(), yc_3 = col_double(),
+                                                           yc_30 = col_double(), yc_5 = col_double(),
+                                                           yc_7 = col_double()))
+  cols = colnames(garch_data_ts_r)
+  garch_data_ts_r = garch_data_ts_r[,2:ncol(garch_data_ts_r)]
+  colnames(garch_data_ts_r) = cols[1:length(garch_data_ts_r)]
+
+  print("Check match of colnames to values in dataset")
+  print(head(garch_data_ts_r))
+  
+  # cut timeframe to after structural break
+  garch_data_ts_r = filter(garch_data_ts_r, date>="2008-01-01")
+
+  
+  # insert mean for nas (for splits this does not have an impact)
+  garch_data_ts_r = garch_data_ts_r %>%
+    mutate_all(funs(ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+  garch_data_ts_r$date = as.Date(garch_data_ts_r$date)
+  
+ #garch_data_ts_r  = readRDS("output/univariateDescriptives/garch_data_ts_r.rds") 
+ garch_data_ts_r_errors = as.xts(garch_data_ts_r[,c("rub_errors", "oil_errors")], order.by = garch_data_ts_r$date)
      
+ 
+ 
     
-      # Optimal fullsample GARCH model ----
-         # possible model specifications
-         ma_choices = seq(1:3)
-         ar_choices = seq(1:3)
-         threshhold_choices = c(T,F)
-         th_value  = 0 # not optimized within fct
-         data_threshhold = 0 # not implemented 
-         distribution_choices =c("normal","t")
+    # Optimal fullsample GARCH model ----
+       # possible model specifications
+       ma_choices = seq(1:3)
+       ar_choices = seq(1:3)
+       threshhold_choices = c(T,F)
+       th_value  = 0 # not optimized within fct
+       data_threshhold = 0 # not implemented 
+       distribution_choices =c("normal","t")
 
         # input data
          # estimate model for each series and timeframe given
@@ -196,16 +224,24 @@
         colnames(epsilon) = paste0(colnames(garch_data_ts_r_errors),"_epsilon")
         colnames(epsilon_sq) = paste0(colnames(garch_data_ts_r_errors),"_epsilon_sq")
         
-        base_split_variables = as.xts(cbind(epsilon, epsilon_sq)) #dataset split variables
+        base_split_variables = as.xts(cbind(epsilon, epsilon_sq)) # return and var as dataset split variables
         
-        # get 2 lags of each variable. In VAR tests, dependencies were not consistent above the 2nd lag. Are excluded to get parsimonious computationally feasible model
+        external_split_vars = c("rub_val","oil_val","MOEX_val","MOEX","SPX_val","SPX","RUBEUR_val","RUBEUR",
+                                "yc_0.25","yc_1","yc_5","yc_10","DGS3MO","DGS10")
+        additional_split_variables = as.xts(garch_data_ts_r[,external_split_vars], order.by = garch_data_ts_r$date)
+        
+        
+        # get 2 lags of each main variable, 1 for others.
         max_lags = 3 # ! keep at 1+lags used. number lags for loop such that for all  split vars the same dataset is used (NA in the first observations otherwise)
         lag1 = lag(base_split_variables,1)
         lag2 = lag(base_split_variables,2)
         colnames(lag1) = paste0(colnames(base_split_variables),"_lag1")
         colnames(lag2) = paste0(colnames(base_split_variables),"_lag2")
         
-        split_variables = as.data.frame(cbind(lag1 , lag2)) # data frame instead of time series
+        lag1_add = lag(additional_split_variables,1)
+        colnames(lag1_add) = paste0(colnames(additional_split_variables),"_lag1")
+        
+        split_variables = as.data.frame(cbind(lag1 , lag2, lag1_add)) # data frame instead of time series
         split_variables$date = rownames(split_variables)
         
         vector_quantiles = seq(1, 7)*0.125 # quantiles as threshholds
@@ -306,8 +342,8 @@
           names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
           
           # add model to model selection list
-          garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification_tree, model_evaluation, returns_with_date,treeGarchResult$split_order_pruned)
-          names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","returns_with_date","treeGarchResult")
+          garch_model = list(names(returns_list)[data_iter], returns, garch_coefs, model_specification_tree, model_evaluation, returns_with_date,treeGarchResult$split_order_pruned,treeGarchResult$split_order)
+          names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","returns_with_date","treeGarchResult", "treeGarchResultNoPruning")
           all_selected_model_tree[[data_iter]] = garch_model 
         }
         # save only tree
@@ -370,46 +406,4 @@
               
               # save list
               saveRDS(univ_oil_rub_models_combined, file = paste0(outpathModels,"univ_oil_rub_tree_models_combined_for_dcc.rds"))
-              
-# Garch packages REMOVE LATER ----
-      
-        
-        acf(returns_list$rub_timeframe3$rub_errors^2)
-        pacf(returns_list$rub_timeframe3$rub_errors^2)
-        test_data = returns_list$oil_timeframe3$oil_errors
-        algorithm = c("nlminb", "lbfgsb", "nlminb+nm", "lbfgsb+nm")
-        garchFit(~ garch(1, 1), data = test_data, trace = F, cond.dist =  "std")
-        
-        
-          opt_garch<- function(ar,ma,returns) {
-            AIC <- matrix(data=NA,nrow=2,ncol=2)
-            for (j in 1:3) {
-              for (i in 1:3) {
-                ug_spec <- ugarchspec(variance.model=list(model="fGARCH", submodel= "TGARCH",garchOrder=c(i,j)), mean.model = list(armaOrder = c(ar, ma), include.mean = TRUE), distribution.model="std") #,submodel="TGARCH"
-                ugfit = ugarchfit(spec = ug_spec, data = returns, solver ='hybrid')
-                info <- infocriteria(ugfit)
-                AIC[j,i] <- info[2,1]
-              }
-            }
-            opt_garch <- which(AIC == min(AIC,na.rm=TRUE), arr.ind=TRUE)
-            ug_spec <- ugarchspec(variance.model=list(model="fGARCH",submodel= "TGARCH", garchOrder=c(opt_garch[1],opt_garch[2])), mean.model = list(armaOrder = c(ar, ma), include.mean = TRUE), distribution.model="std") # ,submodel="TGARCH"
-            ug_fit = ugarchfit(spec = ug_spec, data = returns, solver ='hybrid')
-            output <- list("Specs"=ug_spec,"fit"=ug_fit)
-          }
-          
-          ####Uni-Garch Specs Oil and RUB#
-          #output_oil <- opt_garch(0,0, test_data)
-          output_rub <- opt_garch(0,0, test_data)
-          
-          #Garch summary Oil
-          output_oil[["fit"]]
-          
-          #Garch summary Oil
-          output_rub[["fit"]]
-          
-          ####Bivar Garch#
-          # cor(ts_r$rub_errors,ts_r$oil_errors)
-          # var(ts_r)
-          # var(ts_r^2)
-          # cor(ts_r$rub_errors^2,ts_r$oil_errors^2)
-          
+ 

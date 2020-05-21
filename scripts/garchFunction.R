@@ -156,9 +156,6 @@ buildAndPruneTree = function(returns, split_variables, list_split_variables,mode
 # function to find optimal split for GARCH 1,1 models
 find_split = function(returns, split_variables, list_split_variables, model_specification,max_lags){
   # step 1) find optimal GARCH 1/1 for sample. remove first max_lags obs since they are not used by TreeGarch either
-
-  print("find_split")
-  print(model_specification)
   
     # estimate model speficied in input
     opt_parms= nlm(garchEstimation,model_specification$start_parms,
