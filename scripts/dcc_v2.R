@@ -33,7 +33,7 @@ dcc_function <- function(rub_list, oil_list, rub_pred,oil_pred){
   rub_specs <- spec_function(rub_list)
   oil_specs <- spec_function(oil_list)
   specs <- list(rub_specs,oil_specs)
-  returns <- cbind(rub_pred$rub_errors,oil_pred$oil_errors)
+  returns <- cbind(rub_pred$rub_errors_lag1,oil_pred$oil_errors_lag1)
   uspec.n = multispec(specs)
   multf <- multifit(uspec.n, returns, solver ='solnp')
   coefs_oil <- as.vector(t(oil_list[["garch_coefs"]][1,]))
