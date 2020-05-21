@@ -3,9 +3,10 @@ source("C:/Users/johan/Documents/GitHub/Volatile-Gamma/scripts/dcc_forecast.R")
 source("C:/Users/johan/Documents/GitHub/Volatile-Gamma/scripts/model_comp.R")
 library(zoo)
 library(xts)
-
+library(plyr)
 ####Import Univariate GARCH Models####
 full_sample <- readRDS("C:/Users/johan/Documents/GitHub/Volatile-Gamma/output/univariateModels/model_and_prediction.rds")
+full_sample[["predictions"]][["rub_tree_subsample2"]] <- full_sample[["predictions"]][["rub_tree_subsample2"]][-(1:3),]
 
 rub_list <- full_sample[["models"]][["rub"]][["rub_all"]]
 oil_list <- full_sample[["models"]][["oil"]][["oil_all"]]
@@ -70,13 +71,6 @@ oil_pred_tree_2 <- full_sample[["predictions"]][["rub_tree_subsample2"]]
 dccoutput_tree_2 <- dcc_function(rub_list_tree_2,oil_list_tree_2,rub_pred_tree_2,oil_pred_tree_2)
 full_sample$dccoutput_tree_2 <- dccoutput_tree_2
 
-
-
-rub_list <- rub_list_tree_2
-oil_list <- oil_list_tree_2
-rub_pred <- rub_pred_tree_2
-oil_pred <- oil_pred_tree_2
-
 ####DCC Estimation TREE-GARCH 2####
 pred_results_1_tree_2 <- full_sample[["predictions"]][["rub_tree_subsample2"]][["variance_predict"]]
 pred_results_2_tree_2 <- full_sample[["predictions"]][["oil"]]
@@ -95,9 +89,27 @@ full_sample$dccestimates_tree_2 <- estimates_tree_2
 
 
 ####comparison####
+est_1 <- as.data.frame(full_sample$dccestimates_tree_1)
+rownames(est_1) <- full_sample[["predictions"]][["rub_tree_subsample1"]][["date"]]
+
+est_2 <- as.data.frame(full_sample$dccestimates_tree_2)
+rownames(est_2) <- full_sample[["predictions"]][["rub_tree_subsample2"]][["date"]]
+
+est <- as.xts(rbind(est_1,est_2))
+est_array <- array(data = , dim = c(nrow(est),2,2))
+for (i in 1:nrow(est)) {
+  est_array[i,1,1] <- est[i,1]
+  est_array[i,2,1] <- est[i,2]
+  est_array[i,1,2] <- est[i,3]
+  est_array[i,2,2] <- est[i,4]
+}
+
+
+
+
 returns <- full_sample[["dccoutput"]][["returns"]]
 estimates_1 <- full_sample$dccestimates
-estimates_2 <- full_sample$dccestimates
+estimates_2 <- est_array
 loss_function <- 3
 output <- model_comparison(estimates_1, estimates_2, returns, loss_function = 3)
 

@@ -73,8 +73,8 @@ dcc_function <- function(rub_list, oil_list, rub_pred,oil_pred){
   for (i in 1:ncol(oil_list[["garch_coefs"]])) {
     multf@fit[[2]]@model[["pars"]][which(rownames(multf@fit[[2]]@model[["pars"]]) == colnames(oil_list[["garch_coefs"]])[i]),1] <- oil_list[["garch_coefs"]][1,i]
   }  
-  #multf@fit[[1]]@fit[["sigma"]] <- as.numeric(round(rub_pred$variance_predict,6))
-  #multf@fit[[2]]@fit[["sigma"]] <- as.numeric(round(oil_pred$variance_predict,6))
+  multf@fit[[1]]@fit[["sigma"]] <- as.numeric(round(rub_pred$variance_predict,6))
+  multf@fit[[2]]@fit[["sigma"]] <- as.numeric(round(oil_pred$variance_predict,6))
   spec1 <- dccspec(uspec = uspec.n, dccOrder = c(1,1), distribution = "mvt")#, 'mvt'fixed.pars = "fixed.se")#fixed.pars = as.list(coef(sgarch.fit)))
   fit1 <- dccfit(spec1, data = returns, solver = "nlminb", fit = multf, fit.control = list(scale =TRUE)) #solver =c("solnp", "nlminb", "lbfgs", "gosolnp"))
   fit1
