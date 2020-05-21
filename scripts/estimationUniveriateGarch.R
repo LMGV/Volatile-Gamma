@@ -212,6 +212,129 @@
           print(all_selected_model[[i]]$garch_coefs)
           print(all_selected_model[[i]]$model_evaluation)
         }
+        
+# Compare Models: Garch 1,1 normal, Garch 1,1 t without threshhold ----
+        # input data 
+        # estimate model for each series and timeframe given (here only for rub)
+        number_timeframes = 1
+        returns_list = list()
+        returns_list_with_date = list()
+        
+        # get same data for all models
+        for (i in 1:3) {
+          returns_list[[i]]=garch_data_ts_r_errors$rub_errors # garch_data_ts_r only contains 1 dataframe. if multiple, then get all series for all timeframes in return_list
+          returns_list_with_date[[i]]=list(data.frame(date=index(garch_data_ts_r_errors), coredata(garch_data_ts_r_errors[,c("rub_errors")])))
+        }
+     
+      
+        names(returns_list) = c("rub_normal_11","rub_t_11","rub_t_gjr_11") #!! rename if multiple timeframes are estimated
+        names(returns_list_with_date) = c("rub_normal_11","rub_t_11","rub_t_gjr_11")
+        
+        # initialize selected model list for all submodels
+        all_selected_model_custom = vector("list", length = length(returns_list))
+        names(all_selected_model_custom) = names(returns_list)
+        
+        # estimate model for all univariate inputs
+          returns = returns_list[[1]]
+          returns_with_date = returns_list_with_date[[1]]
+          
+          # list of model specifications for estimation 
+          ma = 1
+          ar = 1
+          threshhold = c(T,F)
+          th_value  = 0 # not optimized within fct
+          data_threshhold = 0 # not implemented 
+          distribution =c("normal","t") # take normal. convergence issues with t in small subsamples of tree  
+          
+          start_parms1 = c(0,0.1,  rep(0.1/ma,ma), rep(0.9/ar,ar)) # initialize parms. 
+          start_parms2= c(0,0.1,  rep(0.1/ma,ma), rep(0.9/ar,ar), 10) # initialize parms. 
+          start_parms3 = c(0,0.1,  rep(0.1/ma,ma), rep(0.9/ar,ar), 0, 10) # initialize parms. 
+          
+          number_parms_estimated1 = length(start_parms1)
+          number_parms_estimated2 = length(start_parms2)
+          number_parms_estimated3 = length(start_parms3)
+          
+          # GARCH (1,1) normal
+          model_specification_custom1 = list(number_parms_estimated1,ma,ar,threshhold[2], distribution[1],th_value, data_threshhold,start_parms1)
+          names(model_specification_custom1) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value","data_threshhold","start_parms")
+          
+          # GARCH (1,1) t
+          model_specification_custom2 = list(number_parms_estimated2,ma,ar,threshhold[2], distribution[2],th_value, data_threshhold,start_parms2)
+          names(model_specification_custom2) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value","data_threshhold","start_parms")
+          
+          # GJR-GARCH (1,1) t
+          model_specification_custom3 = list(number_parms_estimated3,ma,ar,threshhold[1], distribution[2],th_value, data_threshhold,start_parms3)
+          names(model_specification_custom3) = c("number_parms_estimated","number_ma","number_ar","threshhold_included", "distribution","th_value","data_threshhold","start_parms")
+          
+          model_specification_custom_list = list(model_specification_custom1,model_specification_custom2,model_specification_custom3)
+          names(model_specification_custom_list) = names(returns_list)
+          
+          # loop though model specifications and save 
+          for (model_spec_iter in 1:length(model_spec_iter)) {
+            
+            
+            # workaround: model specific does not work with [[]] referening
+            #model_specification_custom = model_specification_custom_list[[model_spec_iter]]
+            if(model_spec_iter == 1){
+              model_specification_custom = model_specification_custom1
+            } else if(model_spec_iter == 2){
+              #model_specification_custom = model_specification_custom2
+            } else {
+              model_specification_custom = model_specification_custom3
+            }
+
+            # estimate GARCH model for given specification_custom (minimize negative loglikelihood)
+            opt_parms= nlm(garchEstimation,model_specification_custom$start_parms,
+                           returns = returns,  ma = model_specification_custom$number_ma, ar = model_specification_custom$number_ar, 
+                           threshhold = model_specification_custom$threshhold_included, th_value = model_specification_custom$th_value, data_threshhold = model_specification_custom$data_threshhold,
+                           distribution=model_specification_custom$distribution,
+                           print.level=0,steptol = 1e-6, iterlim=1000, check.analyticals=T)
+            
+            # get model parameters
+            # get same names as in DCC function
+            names_parms =  c("mu", "omega", paste0("alpha",seq(1:ma)), paste0("beta",seq(1:ar)))
+            if(model_specification_custom$threshhold==T){
+              names_parms=  c(names_parms, "eta11") # set asymmetry parameter to 0 
+            }
+            if(model_specification_custom$distribution=="t"){
+              names_parms=  c(names_parms, "shape") # keep df_t > 2 due to likelihood fct
+            }
+            
+            garch_coefs = as.data.frame(t(c(opt_parms$estimate[1], opt_parms$estimate[2:(2+ar+ma)]^2,opt_parms$estimate[(3+ar+ma):length(opt_parms$estimate)])))
+            colnames(garch_coefs) = names_parms
+            
+            # model evaluation
+            # stationarity
+            sum_coefs = sum(garch_coefs[,3:(2+ar+ma)])
+            if(model_specification_custom$threshhold==T){
+              sum_coefs=  sum_coefs + sum(returns<=th_value)/(length(returns))*garch_coefs$eta11 # adjust if threshhold is active
+            }
+            
+            # model selection
+            loglik_model =-opt_parms$minimum
+            aic_model = my_aic(loglik_model, model_specification_custom$number_parms_estimated)
+            bic_model = my_bic(loglik_model, model_specification_custom$number_parms_estimated, length(returns))
+            
+            # save model evaluation in list  
+            model_evaluation = list(sum_coefs,loglik_model, aic_model, bic_model)
+            names(model_evaluation) = c("sum_ar_ma_coefs","log_lik","aic_model","bic_model")
+            
+            # add model to model selection list
+            garch_model = list(names(returns_list)[model_spec_iter], returns, garch_coefs, model_specification_custom, model_evaluation, returns_with_date)
+            names(garch_model) = c("series_name", "return_data", "garch_coefs", "model_specification", "model_evaluation","returns_with_date")
+            all_selected_model_custom[[model_spec_iter]]  = garch_model
+          }
+
+        # save only custom
+        saveRDS(all_selected_model_custom, file = paste0(outpathModels,"univariate_garchs_custom_rub.rds"))
+        
+        # investigate results
+        for(i in 1:length(all_selected_model_tree)) {
+          print(all_selected_model_tree[[i]]$series_name)
+          print(all_selected_model_tree[[i]]$model_specification)
+          print(all_selected_model_tree[[i]]$garch_coefs)
+          print(all_selected_model_tree[[i]]$model_evaluation)
+        }
 
         
 # Tree GARCH (1,1) ----
@@ -280,6 +403,17 @@
         
         # 3) get subsamples tree
         subsamples_tree  = collectSubsamplesTree(returns, split_variables, treeGarchResult$split_order_pruned)
+        subsamples_tree_no_pruning  = collectSubsamplesTree(returns, split_variables, treeGarchResult$split_order) # get these just to see sample size of potential splits
+        print("summary(subsamples_tree)")
+        print(c(nrow(subsamples_tree[[1]]), nrow(subsamples_tree[[2]])))
+        print("split table with pruning")
+        print(xtable(treeGarchResult$split_order, caption = "Splits tree with pruning"))
+        print("number obs tree no pruning")
+        print(c(nrow(subsamples_tree_no_pruning[[1]]), nrow(subsamples_tree_no_pruning[[2]]),
+                                                          nrow(subsamples_tree_no_pruning[[3]]),
+                                                               nrow(subsamples_tree_no_pruning[[4]])))
+        print("split table no pruning")
+        print(xtable(treeGarchResult$split_order, caption = "Splits tree without pruning"))
         
         # 4) Estimate and save GARCH for every terminal leaf (here only for RUBUSD)
         # input data
