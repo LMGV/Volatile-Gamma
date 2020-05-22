@@ -2,7 +2,7 @@
 
 # Project
 This project for a class on financial volatility from Prof. Francesco Audrino at the University of St.Gallen aimed to examine the dependence of exchange rate volatility on commodity prices. 
-Model estimation is coded on our own apart from the DCC-model. 
+Model estimation is coded on our own apart from the DCC-model where we partly relied on available R-packages.
 
 # Paper Abstract
 This paper examines the relationship between volatility of of the Russian
