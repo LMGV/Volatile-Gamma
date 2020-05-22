@@ -1,4 +1,19 @@
-# Volatile-Gamma
+# Dependence of Exchange Rate Volatility on Commodity Prices Example of Russian Ruble
+
+# Project
+This project for a class on financial volatility from Prof. Francesco Audrino at the University of St.Gallen aimed to examine the dependence of exchange rate volatility on commodity prices. 
+Model estimation is coded on our own apart from the DCC-model. 
+
+# Paper Abstract
+This paper examines the relationship between volatility of of the Russian
+Ruble / US Dollar exchange rate and volatility of the Brent Oil
+price. For this we use a classic GARCH model, a tree-GARCH model and
+a DCC-GARCH model. We also test for structural breaks. We show that
+at times of decreasing oil price returns, the volatility of the Russian Ruble
+/ US Dollar exchange rate is less persistent and the conditional correlation
+between Russian Ruble / US Dollar exchange rate returns and Brent oil
+price returns is more persistent than in normal market conditions.
+
 
 # Data sources
 Exchange rate:
